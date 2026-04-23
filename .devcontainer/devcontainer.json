@@ -1,0 +1,32 @@
+{
+  "name": "Netflix-Cursos",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/Netflix-Cursos",
+  "forwardPorts": [3000, 5432],
+  "portsAttributes": {
+    "3000": { "label": "Next.js", "onAutoForward": "notify" },
+    "5432": { "label": "Postgres", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "pnpm install",
+  "remoteUser": "node",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "biomejs.biome",
+        "Prisma.prisma",
+        "bradlc.vscode-tailwindcss",
+        "ms-playwright.playwright",
+        "vitest.explorer"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "biomejs.biome",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "quickfix.biome": "explicit",
+          "source.organizeImports.biome": "explicit"
+        }
+      }
+    }
+  }
+}
