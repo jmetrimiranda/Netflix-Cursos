@@ -1,0 +1,7 @@
+SETUP.md
+prompt_yolo_f0.md
+node_modules
+.next
+.env
+.env.local
+.env*.local
