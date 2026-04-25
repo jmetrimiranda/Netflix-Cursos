@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function PublicHeader() {
@@ -6,9 +7,18 @@ export function PublicHeader() {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link
           href="/"
-          className="font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg"
+          aria-label="Ativa Engenharia"
+          className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground sm:text-lg"
         >
-          Netflix-Cursos
+          <Image
+            src="/images/brand/logo.png"
+            alt=""
+            width={28}
+            height={28}
+            priority
+            className="h-7 w-7 object-contain dark:brightness-0 dark:invert"
+          />
+          <span>Ativa Engenharia</span>
         </Link>
       </div>
     </header>

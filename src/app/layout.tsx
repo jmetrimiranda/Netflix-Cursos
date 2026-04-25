@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Netflix-Cursos",
-  description: "Plataforma de cursos online (em construção).",
+  title: "Ativa Engenharia",
+  description:
+    "Soluções integradas em engenharia: climatização, elétrica, mecânica, civil e segurança do trabalho. Cursos online com certificado.",
 };
 
 export default function RootLayout({
