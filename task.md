@@ -113,3 +113,72 @@
 ### Blockers / pendências
 - Credenciais de Bunny Stream e Cloudflare R2 (necessárias em F2 para upload real). Em dev pode-se mockar até o Jorge prover.
 - Branch protection ainda dependente do passo do `SETUP.md` (não bloqueia F1, mas vale checar antes de mergear).
+
+---
+## 2026-04-25 14:30 — feature/cms-cursos — CMS de cursos (F2)
+
+**Fase:** F2
+**PR:** em andamento (aberto contra `develop`)
+
+### O que foi feito
+- **Schema Prisma completo** (SPEC §3.1): `Course`, `Module`, `Lesson`, `LessonView`, `Question`, `Enrollment`, `ExamAttempt`, `Payment`, `Certificate` + enums `CourseCategory` e `PaymentStatus`. Cascade rules conforme SPEC; @@unique em `LessonView(studentEmail,lessonId)` e `Enrollment(studentEmail,courseId)`. Migration `20260425133421_add_courses_schema` aplicada.
+- **Seed idempotente** (`prisma/seed.ts`): além do admin, cria curso de exemplo `fundamentos-de-engenharia-civil` com 1 módulo, 1 aula stub e 5 questões. Reexecução não duplica (upserts/findFirst+create).
+- **Integrações backend**:
+  - `src/lib/r2.ts` com `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`. `getR2Client()`, `createPresignedUploadUrl(key,contentType,expiresIn)`, `getPublicUrl(key)`. Retorna `R2NotConfiguredError` se vars ausentes.
+  - `src/lib/bunny.ts` via fetch nativo: `createVideo(title)`, `getVideoStatus(videoId)`, `deleteVideo(videoId)`. Computa `AuthorizationSignature` SHA-256 server-side (`libraryId+apiKey+expire+videoId`) com expiração 1h para uploads TUS — a apiKey nunca vai ao client.
+  - `POST /api/admin/r2/presign` e `POST /api/admin/bunny/create-video` protegidos por `auth()`. Retornam **503** com mensagem clara quando env vars estão vazias.
+- **Admin UI — Cursos**:
+  - `/admin/cursos` lista (Server Component) ordenada por `updatedAt`, com thumbnail, badges Publicado/Destaque/Rascunho, link Editar e dialog de exclusão.
+  - `/admin/cursos/novo` e `/admin/cursos/[id]/editar` com formulário Zod + react-hook-form: título, slug auto-gerado por `slugify`, descrição, categoria (select), preço BRL com máscara via `formatCentsToBRL`/`parseBRLToCents`, carga horária, examQuestionsCount, examPassScore, thumbnail (upload R2 via presign + barra de progresso), featured, published. Slug travado quando há matrículas. Server Actions create/update/delete com tratamento P2002 (slug duplicado).
+- **Admin UI — Módulos e aulas** (`/admin/cursos/[id]`):
+  - Tabs Configurações / Módulos / Banco de questões.
+  - `ModulesPanel` + `LessonsSubpanel` com dnd-kit (PointerSensor + KeyboardSensor) reordenando módulos e aulas; `reorderModulesAction` e `reorderLessonsAction` persistem via `db.$transaction(updates)`.
+  - `LessonForm`: título, `<VideoUploader/>` (TUS direto pro Bunny via `tus-js-client`, headers `AuthorizationSignature/Expire/VideoId/LibraryId`, fallback "Configure BUNNY_STREAM_API_KEY..." quando 503), `<TiptapEditor/>` (StarterKit + Link, toolbar bold/italic/H2/H3/listas/link, JSON salvo no campo Json) e upload opcional de PDF via R2.
+- **Admin UI — Banco de questões** (`/admin/cursos/[id]/questoes`):
+  - CRUD completo com `QuestionForm` (enunciado, 4 opções com radio para a correta, toggle Ativa). Lista mostra ✓ na correta, badge Ativa/Inativa, botões Editar/Toggle/Excluir. Validação Zod com `refine` exigindo exatamente 1 correta.
+- **Stubs**: `/admin/alunos` permanece "Em construção" (F4); modelos `Enrollment`/`ExamAttempt`/`Payment`/`Certificate` definidos no schema mas sem rotas/UI nesta fase.
+- **Testes**:
+  - Vitest unit: `slug.test.ts` (slugify diacríticos/whitespace/sufixos `-2/-3`) e `money.test.ts` (formatBRL/parseBRL roundtrip + edge cases). Total agora: 20 testes.
+  - Playwright `admin-cms.spec.ts`: login → cria curso → módulo → aula sem upload → questão → reload persiste → abre o curso pela lista. Suíte e2e total: 5 testes verdes.
+- **Deps adicionadas**: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `tus-js-client`, `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-link`, `@tiptap/pm`, `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`. Primitivos shadcn: `textarea`, `select`, `switch`, `checkbox`, `tabs`, `badge`.
+- `pnpm gates` verde; `pnpm test:e2e` verde (5/5).
+
+### Arquivos tocados
+- `prisma/schema.prisma`, `prisma/migrations/20260425133421_add_courses_schema/migration.sql`, `prisma/seed.ts`
+- `src/lib/{r2,bunny,money,slug}.ts`
+- `src/lib/validations/{course,module,lesson,question}.ts`
+- `src/app/api/admin/r2/presign/route.ts`, `src/app/api/admin/bunny/create-video/route.ts`
+- `src/app/admin/(dashboard)/cursos/page.tsx`
+- `src/app/admin/(dashboard)/cursos/novo/page.tsx`
+- `src/app/admin/(dashboard)/cursos/_components/{course-form,delete-course-button}.tsx`
+- `src/app/admin/(dashboard)/cursos/actions.ts`
+- `src/app/admin/(dashboard)/cursos/[id]/{page,actions}.ts(x)`
+- `src/app/admin/(dashboard)/cursos/[id]/_components/{modules-panel,lesson-form}.tsx`
+- `src/app/admin/(dashboard)/cursos/[id]/editar/page.tsx`
+- `src/app/admin/(dashboard)/cursos/[id]/questoes/{page,actions}.ts(x)`
+- `src/app/admin/(dashboard)/cursos/[id]/questoes/_components/{question-form,questions-list}.tsx`
+- `src/components/admin/{thumbnail-upload,tiptap-editor,video-uploader}.tsx`
+- `src/components/ui/{badge,checkbox,select,switch,tabs,textarea}.tsx`
+- `tests/unit/{slug,money}.test.ts`, `tests/e2e/admin-cms.spec.ts`
+- `package.json`, `pnpm-lock.yaml`
+
+### Decisões
+- **Bunny TUS auth via signature SHA-256** (não AccessKey direto pro client). Calculo `sha256(libraryId+apiKey+expire+videoId)` no server e devolvo `{authorizationSignature, authorizationExpire, videoId, libraryId, uploadUrl}` pro client. A apiKey nunca atravessa a fronteira. Documentado em `src/lib/bunny.ts`.
+- **TUS via `tus-js-client`** (não SDK oficial). Mais leve e estável que `@bunny.net/stream-sdk`; integração direta via headers TUS metadata, com `retryDelays: [0,1000,3000,5000]` para resumir uploads que travam.
+- **Schema Zod sem `.coerce`** no formulário de curso. O `useForm<CourseInput>` precisa de input/output type iguais; mantenho strings/booleans/números puros no schema e converto FormData → tipos dentro do Server Action (helper `parseCourseFormData`). Evita conflitos zod 4 + RHF v7 sobre `Resolver<input, ctx, output>`.
+- **`window.location.reload()` após mutations** no painel admin de módulos/aulas/questões. `revalidatePath` + `router.refresh()` não estavam refletindo as mudanças no client em Turbopack dev (bug aparente do RSC streaming com Server Action chamada via `await` de wrappers). Como é admin tool, o reload é aceitável; nas outras telas (criação de curso) usamos `redirect` no Server Action que funciona normalmente.
+- **`asChild` no `Button` shadcn não existe** com o registry `base-nova` (`@base-ui/react`). Para botões-link usei `<Link className={buttonVariants({...})}>...</Link>` em vez de `<Button asChild>`.
+- **Lista questão usa Json puro como `QuestionOption[]`**. Evita migration extra e mantém a forma `[{id,text,isCorrect}]` documentada no SPEC.
+
+### Próximos passos (F3)
+- Home pública / dark mode / hero do curso featured / rows por categoria.
+- `/cursos/[slug]` com lista de módulos/aulas.
+- Modal de captura de email + `POST /api/enrollment` idempotente.
+- Player Bunny embed + sidebar Tiptap renderer + `POST /api/progress` (debounce 10s).
+- Indicador ✓ em aulas completadas.
+- E2E público: navegar do catálogo → curso → aula com progresso persistido.
+
+### Blockers / pendências
+- **Credenciais reais de Bunny Stream e Cloudflare R2** continuam pendentes; UI já reflete o 503 com mensagens amigáveis ("Bunny Stream não configurado..." e desabilita o botão). Para testar uploads reais Jorge precisa preencher `BUNNY_STREAM_*` e `R2_*` no `.env` (e no Vercel para prod).
+- **Branch protection no GitHub** continua aberta — ainda dependente do passo do `SETUP.md`. Não bloqueia F2.
+- Drag-to-reorder de módulos/aulas usa `router.refresh()` (não `window.location.reload()`) e funciona porque a UI já mostra o estado optimístico via `setModules(next)` antes do roundtrip; se o reorder falhar em produção o `setModules(initial)` reverte. Em dev/Turbopack está estável.
