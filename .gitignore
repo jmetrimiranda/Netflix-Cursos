@@ -2,7 +2,7 @@
 
 # local-only helpers (not part of the repo)
 SETUP.md
-prompt_yolo_f0.md
+prompt_yolo_*.md
 
 # dependencies
 /node_modules

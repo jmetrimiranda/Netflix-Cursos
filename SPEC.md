@@ -105,7 +105,7 @@ Schema Prisma (resumo conceitual — o schema real vive em `prisma/schema.prisma
 - `priceCents` (Int, preço do certificado em centavos — definido pelo admin, varia por curso)
 - `workloadHours` (Int, definido pelo admin)
 - `examQuestionsCount` (Int, quantas questões sorteadas do banco na prova — default 10)
-- `examPassScore` (Float, nota mínima — default 7.0 de 10)
+- `examPassScore` (Float, nota mínima — **default 6.0**, editável por curso)
 - `published` (Boolean, default false)
 - `featured` (Boolean, default false — destaca na home institucional)
 - `createdAt`, `updatedAt`
@@ -130,8 +130,9 @@ Schema Prisma (resumo conceitual — o schema real vive em `prisma/schema.prisma
 - `id`, `courseId` (FK, cascade), `statement` (texto), `active` (Boolean)
 - `options` (Json — array `[{id, text, isCorrect}]`, 4 opções, 1 correta)
 
-**`Enrollment`** — criado no 1º acesso do aluno ao curso (após email)
+**`Enrollment`** — criado no checkout (não mais "no 1º acesso")
 - `id`, `studentEmail`, `courseId` (FK), `startedAt`
+- `status` (`pending_payment` | `active` | `cancelled`, default `pending_payment`) — fonte da verdade pra acesso ao curso (ADR-012)
 - `@@unique([studentEmail, courseId])`
 
 **`ExamAttempt`**
@@ -187,26 +188,26 @@ Os textos de páginas institucionais (`/`, `/servicos`, `/quem-somos`, `/faq`, `
 
 ### 4.2 Fluxo do aluno (cursos)
 
-1. Chega em `/cursos` (via menu, link da home ou direto) → vê **catálogo Netflix** com filtro de categoria + rows horizontais com cards verticais 2:3.
-2. Clica num curso → `/cursos/[slug]`. Vê descrição, módulos, botão "Começar".
-3. Ao clicar "Começar" pela 1ª vez → modal pede email. Ao confirmar:
-   - `POST /api/enrollment` cria `Enrollment` (se não existir).
-   - Salva email no `localStorage["ativa_engenharia_email"]` pra reconhecer em visitas futuras.
-4. Abre a 1ª aula → `/cursos/[slug]/aulas/[lessonId]`.
-   - **Player Bunny Stream** à esquerda.
-   - **Sidebar** à direita com `sidebarContent` (Tiptap renderizado) e download do `sidebarPdfUrl` se houver.
-   - Progresso é reportado a cada 10s via `POST /api/progress` → atualiza `LessonView`. Ao atingir 90% → `completed=true`.
-5. Navegação é livre (pode pular ordem).
-6. **Botão "Fazer prova" só fica ativo quando TODAS as `Lesson` do curso estão `completed=true` pra aquele email**.
-7. Prova:
-   - `POST /api/exam/start` sorteia `examQuestionsCount` questões ativas do curso → cria `ExamAttempt`.
-   - Aluno responde → `POST /api/exam/submit` corrige, grava `score` e `passed`.
-   - Tentativas ilimitadas.
-8. Se `passed` && sem `Payment.approved`:
-   - Mostra mensagem de parabéns.
-   - Formulário pede **nome completo** e **CPF** (validação dígitos).
-9. **Checkout Pix:** (ver fluxo F4 detalhado em §4.4)
-10. Quando `status=approved`: emite certificado, redireciona pra tela de certificado.
+1. Chega em `/cursos` → vê catálogo dark com filtro de categoria.
+2. Clica num curso → `/cursos/[slug]`. Vê descrição, módulos read-only, **preço destacado**, e CTA dinâmico:
+   - Sem enrollment OU sem email salvo: **"Comprar acesso"**.
+   - Com enrollment `pending_payment`: **"Finalizar pagamento"**.
+   - Com enrollment `active`: **"Continuar curso"** → primeira aula não-concluída.
+3. **Comprar acesso** → `/cursos/[slug]/comprar` → form único: email, nome completo, CPF (com validação dígitos verificadores), checkbox LGPD.
+4. Submit → `POST /api/checkout/create`:
+   - Cria `Enrollment` (status `pending_payment`) + `Payment` (status `pending`).
+   - Chama `gateway.createPix(...)` (AbacatePay por default, ADR-013).
+   - Retorna QR + brCode + expiresAt.
+5. `/cursos/[slug]/comprar/pix` mostra QR code, botão copiar brCode, contador 30min.
+6. Polling 3s em `/api/checkout/status/[id]`. Webhook do gateway é canal primário; polling apenas lê do banco.
+7. Quando `Payment.status='approved'`:
+   - Webhook flipa `enrollment.status='active'`.
+   - Frontend detecta via polling, redireciona pra primeira aula.
+8. Aluno assiste todas as aulas (mesmo player + sidebar Tiptap da F3, mesmo tracking de progresso).
+9. **Botão "Fazer prova"** só destrava com `enrollment.status='active'` E todas `Lesson` completed.
+10. Prova: sorteio de N questões, correção server-side, score = (corretas/total)*10.
+11. Se `score >= course.examPassScore` (default 6.0): **certificado emitido automaticamente** via `issueCertificateIfNeeded()` (idempotente). Sem 2º pagamento.
+12. Email enviado via Resend com link pro PDF + link pra verificação pública.
 
 ### 4.3 Fluxo do admin
 
@@ -256,16 +257,12 @@ Os textos de páginas institucionais (`/`, `/servicos`, `/quem-somos`, `/faq`, `
 
 ## 5. Regras de Negócio (resumo)
 
-- Nota mínima aprovação: **campo `examPassScore` por curso, default 7.0**.
-- Questões sorteadas por prova: **campo `examQuestionsCount` por curso, default 10**.
-- Tentativas de prova: **ilimitadas**, sem cooldown.
-- Aluno deve ter TODAS as lições do curso com `LessonView.completed=true` pra destravar a prova.
-- Certificado só é emitido se: `ExamAttempt.passed=true` E `Payment.status=approved`.
-- Certificado é **vitalício** (sem `expiresAt`).
-- Admin é **único** — não há multi-tenancy.
-- Preço do certificado é **por curso**, em centavos de BRL, definido pelo admin.
-- Se o aluno já tem `Payment.status=approved` e ganhou certificado, não pode re-pagar.
-
+- Nota mínima aprovação: **default `6.0`**, campo `examPassScore` por curso (admin pode ajustar).
+- **Aluno só acessa conteúdo se `Enrollment.status='active'`** — webhook do Pix é quem flipa de `pending_payment` → `active`.
+- Certificado é emitido **automaticamente** quando `ExamAttempt.passed=true` E `Enrollment.status='active'` (1 Pix libera tudo).
+- Certificado é **vitalício**.
+- Acesso ao curso é **vitalício** (`Enrollment.status='active'` não expira; só vira `cancelled` em caso de reembolso manual).
+- Tentativas de prova: ilimitadas, sem cooldown.
 ---
 
 ## 6. ADRs (Architectural Decision Records)
@@ -335,7 +332,17 @@ Os textos de páginas institucionais (`/`, `/servicos`, `/quem-somos`, `/faq`, `
 **Decisão:** Arquivos sob `src/content/` (ex: `services.ts`, `faq.ts`, `team.ts`, `contact.ts`).
 **Justificativa:** Versionamento via git, sem backend, sem CMS extra, type-safe (TS infere). Admin não edita esse conteúdo no painel.
 **Consequências:** Mudar conteúdo = commit + deploy. Pra esse volume de mudanças (raras), é o trade-off certo. Se virar volume alto, F6+ pode introduzir admin de "Páginas Institucionais".
+### ADR-012: Paywall total — 1 Pix libera curso + certificado
+**Contexto:** F3 implementou modelo "preview grátis, paga só pelo certificado". Validei com cliente: o produto correto é paywall total, com pagamento antes do acesso ao conteúdo.
+**Decisão:** Aluno informa email + nome + CPF e paga via Pix antes de acessar qualquer aula. Pagamento aprovado dá acesso vitalício ao curso. Certificado é emitido automaticamente quando o aluno passa na prova (`score >= examPassScore`, default 6.0), sem 2º pagamento.
+**Justificativa:** Modelo mais simples pro aluno (1 transação) e pro admin (1 produto, 1 preço). Reduz superfície de checkout e fricção pós-aprovação. Alinha com expectativa típica de cursos online no Brasil (Hotmart, Eduzz, etc).
+**Consequências:** `/cursos/[slug]` para não-comprador vira página de venda. `Enrollment` ganha campo `status` (`pending_payment` | `active` | `cancelled`) — fonte da verdade pra acesso. Endpoints de aula/progresso/exame ganham guard `hasAccess(enrollment)`. F3 não foi rolled-back; gates entraram em F4 sobre o que F3 já tinha. Modal de email da F3 ficou obsoleto (captura agora é exclusiva do checkout).
 
+### ADR-013: Gateway de pagamento atrás de adapter pattern, AbacatePay como default
+**Contexto:** Jorge pediu que o gateway seja "fácil de trocar depois". Cliente começa com uma conta receptora (CNPJ Ativa Engenharia) e pode querer trocar de provedor sem rewrite. Avaliei AbacatePay vs Mercado Pago.
+**Decisão:** Interface `PaymentGateway` em `src/lib/payments/types.ts` com 3 métodos: `createPix`, `getStatus`, `verifyWebhook`. Implementação default: `AbacatePayGateway` em `src/lib/payments/abacatepay.ts`. Factory `getPaymentGateway()` lê `process.env.PAYMENT_PROVIDER` (default `'abacatepay'`). Trocar gateway = escrever novo adapter + flip env var, sem refactor em rotas.
+**Justificativa AbacatePay sobre MP:** taxa fixa R$ 0,80/transação (vs ~0,99% MP) é melhor pra ticket alto; DX consistentemente reportada como superior; sandbox automático sem KYC; CNPJ ativo da Ativa Engenharia (29.974.056/0001-29) é LTDA estabelecida desde 2018 — passa KYC sem fricção. Risco de troca futura mitigado pela camada de adapter.
+**Consequências:** Toda rota de checkout/webhook chama `getPaymentGateway()`, nunca SDK direto. Schema mantém campo `mpPaymentId` (legado da época MP) por economia de churn — comentário no schema documenta que serve a qualquer gateway. Mudança de provedor exige novo adapter (~100 linhas) + variáveis de ambiente novas. Webhook do AbacatePay valida HMAC SHA-256 com `ABACATEPAY_WEBHOOK_SECRET`.
 ---
 
 ## 7. Variáveis de Ambiente
@@ -375,6 +382,13 @@ R2_PUBLIC_URL=                       # ex: https://pub-xxxx.r2.dev ou domínio c
 # --- Resend ---
 RESEND_API_KEY=
 RESEND_FROM=Ativa Engenharia <no-reply@ativaengenharia.net>
+
+
+# --- Payment Gateway (ADR-013) ---
+PAYMENT_PROVIDER=abacatepay
+ABACATEPAY_API_KEY=               # dev mode token, pega em app.abacatepay.com
+ABACATEPAY_WEBHOOK_SECRET=        # gera ao criar webhook no painel
+ABACATEPAY_API_URL=https://api.abacatepay.com/v1
 ```
 
 ---

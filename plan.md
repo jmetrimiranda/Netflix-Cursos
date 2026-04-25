@@ -265,45 +265,86 @@ Na F3, descobriu-se que a Ativa Engenharia não é apenas uma escola de cursos �
 
 ---
 
-## F4 — Prova + Pix + Certificado + Verificação
+## F4 — Paywall + Prova + Certificado + Verificação 🚀 PRÓXIMA
 
-**Branch:** `feature/prova-pix-cert`
-**Objetivo:** Fluxo end-to-end: prova → pagamento → certificado emitido e verificável.
+**Branch:** `feature/paywall-prova-cert`
+**Objetivo:** paywall total — 1 Pix libera curso vitalício e emite certificado automático quando aluno passa na prova. Gateway via adapter pattern (AbacatePay default).
 
-### Escopo
-- Destravamento da prova:
-  - `/cursos/[slug]/aulas/prova` só libera se todas as `Lesson` do curso têm `LessonView.completed=true` para o email atual
-  - Caso contrário: tela "Você ainda precisa concluir X aulas"
-- Prova:
-  - `POST /api/exam/start` sorteia N questões, cria `ExamAttempt`
-  - Renderização da prova (lista por padrão)
-  - `POST /api/exam/submit` corrige, grava `score` e `passed`
-  - Tela de resultado: passou ou não
-- Fluxo pago:
-  - Form de dados: nome completo, CPF (com validação de dígitos, máscara no frontend)
-  - `POST /api/pix/create` → Mercado Pago → retorna QR code base64 + copia-e-cola + paymentId
-  - Tela do Pix: QR, botão copiar, contador regressivo (30min), polling `GET /api/pix/status/[id]` a cada 3s
-- Webhook:
-  - `POST /api/pix/webhook` valida `x-signature`, busca pagamento na API do MP, atualiza status idempotentemente
-- Certificado:
-  - `src/lib/certificates.ts::issueCertificate()` — geração via `@react-pdf/renderer` (template com logo Ativa + selos), upload R2, envia email Resend, cria `Certificate`
-  - Idempotência
+### Contexto
+
+ADR-012 (paywall total) e ADR-013 (gateway adapter) documentados em SPEC.md §6. Modelo: aluno informa email+nome+CPF, paga 1 Pix, ganha acesso vitalício + certificado pós-prova-passada. Nota mínima default 6.0 (campo por curso). AbacatePay como gateway primário (taxa R$ 0,80, DX superior). CNPJ Ativa 29.974.056/0001-29 (LTDA desde 2018) passa KYC sem fricção.
+
+### Escopo (7 commits)
+
+**C1 — Cleanup pre-paywall**
+- Typo "questãos" → "questões" no admin de banco de questões
+- Subhead `/cursos` atualizada pra refletir paywall
+- `scripts/cleanup-test-courses.ts` + `pnpm db:cleanup-test-courses`
+
+**C2 — Schema F4**
+- Migration: enum `EnrollmentStatus` (`pending_payment`|`active`|`cancelled`)
+- `Enrollment.status` default `pending_payment`
+- Grandfathering: enrollments F3 viram `active`
+- `Course.examPassScore` default `6.0`
+
+**C3 — Payment Gateway adapter (ADR-013)**
+- `src/lib/payments/types.ts` — interface + erros tipados
+- `src/lib/payments/abacatepay.ts` — implementação AbacatePay (createPix via `/pixQrCode/create`, getStatus via `/pixQrCode/check`, verifyWebhook HMAC SHA-256)
+- `src/lib/payments/index.ts` — factory `getPaymentGateway()`
+- `.env.example` com 4 vars novas
+- Tolerância: vars vazias → `GatewayNotConfiguredError` → 503 amigável
+- Testes unit cobrindo factory + verifyWebhook + status mapping
+
+**C4 — Access gates**
+- `src/lib/access.ts` — `getEnrollment()` + `hasAccess()`
+- `/cursos/[slug]` Server + `<CourseDetailGate/>` Client com CTA dinâmico
+- `<LessonAccessGate/>` envolve `<LessonView/>` — bloqueia sem `status='active'`
+- `POST /api/enrollment` muda comportamento: só consulta, não cria
+- `POST /api/progress`, `GET /api/enrollment/state`, `POST /api/exam/*` ganham guard
+- Modal de email da F3 fica obsoleto (remover)
+- E2E adaptado: "Comprar acesso" leva pra checkout, não pra modal
+
+**C5 — Checkout Pix**
+- `src/lib/cpf.ts` — validateCpf, maskCpf, testes unit
+- `POST /api/checkout/create` — Zod, cria Enrollment+Payment, chama gateway, retorna QR
+- `GET /api/checkout/status/[id]` — lazy expiry, lê só do banco
+- `/cursos/[slug]/comprar` + `<CheckoutForm/>` (email+nome+CPF+LGPD)
+- `/cursos/[slug]/comprar/pix` — QR base64 + brCode copia-e-cola + contador 30min + polling 3s
+
+**C6 — Prova + emissão automática de certificado**
+- `POST /api/exam/start` (sorteio random, hide isCorrect)
+- `POST /api/exam/submit` (correção server-side, dispara `issueCertificateIfNeeded()` se passou)
+- `src/lib/certificates.ts` — `issueCertificateIfNeeded` idempotente
+- `src/lib/pdf/CertificateTemplate.tsx` — `@react-pdf/renderer` A4 paisagem com logo, dados, selos, QR, assinatura
+- `src/lib/email/CertificateIssued.tsx` + `src/lib/email.ts` — Resend, best-effort
+- `/cursos/[slug]/aulas/prova` + `<ExamView/>`
 - `/cursos/[slug]/certificado` — preview + download
-- `/verificar/[codigo]` — SSR, mostra dados do certificado ou "Código inválido"
-- E2E: aluno conclui curso, passa na prova, "paga" via MP sandbox, vê certificado
-- Atualizar `task.md`
+- Deps: `@react-pdf/renderer`, `qrcode`, `@types/qrcode`
+
+**C7 — Webhook + verificar público**
+- `POST /api/payments/webhook` — raw body, HMAC verify, idempotente, só ativa enrollment (não emite cert)
+- `/verificar/[codigo]/page.tsx` — SSR público, light theme
+- E2E final cobrindo paywall flow
 
 ### Critério de aceite
-- [ ] Prova não libera com aulas incompletas
-- [ ] Resposta com nota < `examPassScore` não permite pagamento
-- [ ] Pix gera QR code real (testado em sandbox do MP)
-- [ ] Polling atualiza a tela quando pagamento é aprovado
-- [ ] Webhook também atualiza
-- [ ] Certificado PDF tem dados corretos + QR code de verificação + identidade visual Ativa
-- [ ] Email chega
-- [ ] `/verificar/[codigo]` funciona publicamente
 
----
+- [ ] `pnpm gates` + `pnpm test:e2e` verdes
+- [ ] Aluno sem enrollment ativo não acessa aula (tela bloqueada)
+- [ ] `validateCpf` rejeita DV errado e todos-iguais
+- [ ] Pix renderiza QR + brCode + contador
+- [ ] Polling 3s detecta approved e redireciona
+- [ ] Webhook HMAC valida e é idempotente
+- [ ] Prova destrava só com `status='active'` E todas aulas concluídas
+- [ ] Certificado emitido automaticamente, sem 2º pagamento
+- [ ] PDF com logo, dados, QR, selos, assinatura
+- [ ] `/verificar/[codigo]` funciona publicamente
+- [ ] Sem credenciais → 503 amigável (não 500)
+- [ ] `task.md` documenta F4
+
+### Pré-requisitos antes de rodar
+
+- Credenciais AbacatePay dev mode (Jorge cria conta, ~5 min, sem CNPJ ainda)
+- (Opcional pra dev) Resend API key + R2 credentials — sem elas, cert é criado mas pdfUrl=null e email é skipado com warning
 
 ## F5 — Polish
 
