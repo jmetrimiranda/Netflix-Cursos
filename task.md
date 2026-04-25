@@ -182,3 +182,59 @@
 - **Credenciais reais de Bunny Stream e Cloudflare R2** continuam pendentes; UI já reflete o 503 com mensagens amigáveis ("Bunny Stream não configurado..." e desabilita o botão). Para testar uploads reais Jorge precisa preencher `BUNNY_STREAM_*` e `R2_*` no `.env` (e no Vercel para prod).
 - **Branch protection no GitHub** continua aberta — ainda dependente do passo do `SETUP.md`. Não bloqueia F2.
 - Drag-to-reorder de módulos/aulas usa `router.refresh()` (não `window.location.reload()`) e funciona porque a UI já mostra o estado optimístico via `setModules(next)` antes do roundtrip; se o reorder falhar em produção o `setModules(initial)` reverte. Em dev/Turbopack está estável.
+
+---
+## 2026-04-25 15:08 — feature/catalogo-player — Catálogo público + player + progresso (F3)
+
+**Fase:** F3
+**PR:** em andamento (aberto contra `develop`)
+
+### O que foi feito
+- **Layout público novo (route group `(public)`)**: substitui o placeholder de `src/app/page.tsx` por uma home estilo Netflix em dark mode. `PublicHeader` fixo com logo "Netflix-Cursos" e Toaster do `sonner` no layout.
+- **Home (`/`)**: hero com `Course.featured=true && published=true` mais recente (fallback para o último publicado, fallback final "Cursos em breve"). Hero exibe thumbnail de fundo com gradiente, badge da categoria, título, descrição truncada (~220 chars) e link "Começar curso" estilizado via `buttonVariants` (não wrap de `<button>` em `<a>`). Abaixo, 3 rows horizontais (Engenharia Civil / Mecânica / Segurança do Trabalho) usando `flex` + `snap-x`/`snap-mandatory` puro CSS (sem libs novas). `CourseCard` mostra thumbnail, "X aulas · Yh", badge da categoria, hover scale-up + shadow.
+- **Página do curso (`/cursos/[slug]`)**: Server Component que busca course por slug (404 se não publicado), com hero compacto (badge categoria, título, descrição completa em `whitespace-pre-wrap`, "X aulas · Yh · Certificado R$ Z"). Conteúdo da lista renderizado pelo `<CourseDetailView/>` (client) que carrega o estado de progresso e expõe os botões "Começar curso"/"Continuar" e "Fazer prova" (disabled até todas as `Lesson` ficarem `completed`).
+- **Modal de captura de email** (`<EmailCaptureModal/>`): shadcn dialog + form simples (sem react-hook-form para reduzir overhead) com Zod via `enrollmentInputSchema`, checkbox de consentimento LGPD obrigatório. Submit chama `POST /api/enrollment` (idempotente via `upsert(studentEmail_courseId)`), persiste em `localStorage["netflix_cursos_email"]` e dispara navegação pra primeira aula não-concluída ou primeira aula.
+- **Página da aula (`/cursos/[slug]/aulas/[lessonId]`)**: Server Component faz join completo `course → modules → lessons`, aterrissa flat list, calcula prev/next, e passa pra `<LessonView/>` (client). Layout 2 colunas em desktop (player ~70% / sidebar ~30%) que stacka no mobile. Header tem breadcrumb (← Curso), "Aula X de N", título e chip ✓ Concluída / ⏵ Em progresso. Sidebar tem material renderizado por `<TiptapRenderer/>` (Tiptap em modo `editable=false`, mais simples que `generateHTML`), botão "Baixar PDF" se `sidebarPdfUrl`, e listagem compacta de aulas do curso com ícones de estado e destaque na aula atual.
+- **Player Bunny (`<LessonPlayer/>`)**: server component que constrói a URL de embed via `buildBunnyEmbedUrl(libraryId, videoId)` com `autoplay=false&loop=false&muted=false&preload=true&responsive=true`. Quando faltam ids exibe placeholder "Vídeo não disponível para esta aula." (cobre o seed atual sem credenciais Bunny).
+- **Tracking de progresso (`<ProgressTracker/>`)**: cliente-only, baseado em **dwell focado** (visibilitychange + setInterval 1s). Calcula `pct = min(100, elapsed / max(60s, durationSeconds*0.9) * 100)` e flusha `POST /api/progress` a cada 10s, só quando o pct cresce. O endpoint upserta `LessonView` em `[studentEmail, lessonId]`, faz `progressPct = max(antigo, novo)`, e marca `completed=true` quando ≥ 90 (nunca volta pra false). Resposta volta ao client via `onProgressUpdate`, que re-hidrata o `Map<lessonId, LessonState>` na `<LessonView/>` — assim os chips ✓/⏵ atualizam sem reload.
+- **Persistência via banco**: além do localStorage, todo refresh repuxa `GET /api/enrollment/state?courseId=&studentEmail=` que devolve `enrollmentId` + `views[]`. Se o aluno trocar de máquina e digitar o mesmo email, o progresso continua de onde parou. Se o email salvo no localStorage não tem enrollment ainda (cenário de cache antigo), a `<LessonView/>` cria via `POST /api/enrollment` automaticamente.
+- **Validations Zod novas**: `enrollmentInputSchema` (courseId + studentEmail trim/lowercase/email/max254) e `progressInputSchema` (enrollmentId + lessonId + progressPct int 0–100). `POST /api/progress` ainda valida que o `lessonId` pertence ao `enrollment.courseId` antes de upsertar.
+- **Smoke E2E**: troquei `tests/e2e/smoke.spec.ts` (não existia mais "em construção" no `/`) por uma asserção do logo no header.
+- **Unit (Vitest) novos**: `tests/unit/bunny-embed.test.ts` (3 testes — domínio + params default + overrides) e `tests/unit/progress.test.ts` (5 testes — `areAllLessonsCompleted` em cenários vazio/feliz/parcial/views órfãs e `isCompletedPct`/threshold). Total: **28 testes** unit verdes.
+- **E2E novo (`tests/e2e/public-catalog.spec.ts`)**: 3 specs serial — (a) home renderiza header + "Começar curso" + heading "Engenharia Civil"; (b) clique no card vai pra `/cursos/[slug]` com botão "Fazer prova" disabled; (c) modal de email → submit → primeira aula → reload preserva email no localStorage e não reabre o modal → após >10s flush, chip "Em progresso" aparece. Total e2e: **8 testes** verdes (3 admin-login, 1 admin-cms, 1 smoke, 3 public-catalog).
+- `pnpm gates` verde; `pnpm test:e2e` verde.
+
+### Arquivos tocados
+- `src/app/(public)/{layout.tsx,page.tsx}`
+- `src/app/(public)/cursos/[slug]/page.tsx`
+- `src/app/(public)/cursos/[slug]/aulas/[lessonId]/page.tsx`
+- `src/app/api/enrollment/route.ts`, `src/app/api/enrollment/state/route.ts`, `src/app/api/progress/route.ts`
+- `src/app/page.tsx` (deletado)
+- `src/components/public/{header,hero-section,course-row,course-card,course-detail-view,email-capture-modal,tiptap-renderer,lesson-player,lesson-view,progress-tracker}.tsx`
+- `src/lib/{bunny-embed,categories,progress,student-email}.ts`
+- `src/lib/validations/{enrollment,progress}.ts`
+- `tests/e2e/{public-catalog,smoke}.spec.ts`
+- `tests/unit/{bunny-embed,progress}.test.ts`
+
+### Decisões
+- **Tracking de progresso por dwell focado, não por postMessage do Bunny.** O `iframe.mediadelivery.net/embed` não emite eventos de progresso de forma estável sem o `player.js` da Bunny (e ainda assim depende de configuração da Library). Em vez de adicionar mais uma dep e calibrar handshake do `player.js`, segui o fallback explicitamente autorizado no prompt da F3: visibilitychange + setInterval acumulando segundos focados, marcando completed em ≥ `max(60s, duration*0.9)`. É previsível, testável (cobre o caso do seed sem `bunnyVideoId`), e independente da configuração real da CDN. Quando aparecer um caso de produção que precise de timestamp real de play/pause, troca-se a fonte do `pct` sem mudar o pipeline.
+- **Tiptap em modo `editable: false`, não `generateHTML`.** `@tiptap/html` não está instalado e introduzir uma segunda implementação de extensions só para serializar HTML duplica configuração. Reusar `useEditor` com `editable: false` rende o mesmo HTML usado no editor admin e mantém uma única source of truth para extensions (StarterKit + Link). Custo: o sidebar é um Client Component (mas a árvore inteira da `<LessonView/>` já é client por causa do tracking, então é gratuito).
+- **Page da aula é Server Component fino + `<LessonView/>` client gordo.** O Server Component só faz o fetch + flat lessons + 404, e passa props serializáveis pro client. Isso permite redirect/notFound com SSR mas mantém todo o estado interativo (player, sidebar, tracker, modal) num só lugar — evita prop drilling de email/enrollmentId pra três componentes diferentes.
+- **`POST /api/enrollment` e `POST /api/progress` sem auth, validados estritamente com Zod.** Conforme prompt da F3 (regra 4). O `POST /api/progress` reforça o invariante checando `lesson.module.courseId === enrollment.courseId` antes de upsertar — impede que alguém reuse um enrollmentId válido para marcar progresso em curso de outra pessoa.
+- **`progressPct` é monotônico no servidor.** O upsert faz `nextPct = max(existing.progressPct, payload.progressPct)` e `nextCompleted = existing.completed || payload >= 90`. Ou seja: se o aluno re-assistir com o player no zero, o servidor não regride — o client também enforça `Math.max(lastSent, computed)` antes de mandar. Custo: nunca dá pra "resetar" um progresso, mas isso não está no escopo do produto.
+- **`<EmailCaptureModal/>` sem react-hook-form.** Form com 2 campos é mais legível como `useState` direto + `safeParse(enrollmentInputSchema, ...)` no submit. RHF agrega mais peso do que valor pra esse caso.
+- **Hero usa `<Link className={buttonVariants(...)}>`, não `<Link><Button/></Link>`.** Wrap de `<button>` em `<a>` é HTML inválido e quebra `getByRole("button")` no Playwright (foi o que aconteceu na primeira passagem dos testes). `buttonVariants` resolve sem precisar de `asChild` (que o registry `base-nova` não expõe — vide F2 task.md).
+- **Listagem de aulas usa `flat` + indexação numerada por curso, não por módulo.** "Aula X de N" e a sidebar list contam o curso inteiro porque a navegação prev/next é livre entre módulos (regra do SPEC §4.1.5: "Navegação é livre, pode pular ordem").
+
+### Próximos passos (F4 — `feature/prova-pix-cert`)
+- `/cursos/[slug]/aulas/prova` com gate via `areAllLessonsCompleted` (helper já está pronto em `src/lib/progress.ts`).
+- `POST /api/exam/start` (sorteio de N questões + cria `ExamAttempt`) e `POST /api/exam/submit` (corrige + salva score/passed).
+- Form de dados (nome + CPF com dígito verificador) → `POST /api/pix/create` → MP API → tela do Pix (QR base64 + copia-e-cola + contador) com polling 3s em `GET /api/pix/status/[id]`.
+- `POST /api/pix/webhook` validando `x-signature`, idempotente.
+- `src/lib/certificates.ts::issueCertificate()` — geração via `@react-pdf/renderer`, upload R2, envia email Resend, cria `Certificate`.
+- `/cursos/[slug]/certificado` (preview + download) e `/verificar/[codigo]` (SSR).
+
+### Blockers / pendências
+- **Credenciais reais de Bunny Stream / Cloudflare R2** continuam pendentes; o player public-side trata o 0-credentials caso com placeholder "Vídeo não disponível", e a UI admin segue mostrando 503 amigável (vide F2). F4 vai precisar de **Mercado Pago** (`MERCADOPAGO_ACCESS_TOKEN` em modo `TEST-`), **Resend** (`RESEND_API_KEY` em test mode ou MailHog) e **R2** (pra upload do PDF do certificado) — sandbox do MP basta pra começar.
+- O fallback de tracking via dwell completa a aula em ≥60s focados quando `durationSeconds` é null. Quando o webhook do Bunny começar a popular `Lesson.durationSeconds` (já existe coluna no schema), o threshold passa automaticamente pra `duration*0.9`. Não precisa migration nem mudança no código.
+- Branch protection no GitHub: ainda pendente (vide entradas anteriores). Não bloqueia F3 nem F4.
