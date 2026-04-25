@@ -59,15 +59,10 @@ export function QuestionForm({ mode, courseId, questionId, defaults, onSaved, on
             : { error: "ID da questão ausente" };
       if ("error" in result) {
         toast.error(result.error);
-      } else {
-        toast.success(mode === "create" ? "Questão criada" : "Questão atualizada");
-        if (mode === "create") {
-          setStatement("");
-          setOptions(EMPTY_OPTIONS);
-          setActive(true);
-        }
-        onSaved?.();
+        return;
       }
+      onSaved?.();
+      window.location.reload();
     });
   }
 

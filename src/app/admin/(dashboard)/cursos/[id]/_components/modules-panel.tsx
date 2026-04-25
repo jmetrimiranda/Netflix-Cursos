@@ -20,7 +20,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { JSONContent } from "@tiptap/react";
-import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   createModuleAction,
@@ -58,6 +59,11 @@ export function ModulesPanel({ courseId, modules: initial }: Props) {
   const [modules, setModules] = useState<ModuleItem[]>(initial);
   const [newTitle, setNewTitle] = useState("");
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  useEffect(() => {
+    setModules(initial);
+  }, [initial]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -80,42 +86,40 @@ export function ModulesPanel({ courseId, modules: initial }: Props) {
       if ("error" in result) {
         toast.error(result.error);
         setModules(initial);
+      } else {
+        router.refresh();
       }
     });
   }
 
-  function handleCreate() {
-    if (newTitle.trim().length < 2) {
-      toast.error("Título do módulo obrigatório");
-      return;
-    }
-    const fd = new FormData();
-    fd.set("title", newTitle.trim());
-    startTransition(async () => {
-      const result = await createModuleAction(courseId, fd);
-      if ("error" in result) toast.error(result.error);
-      else {
-        toast.success("Módulo criado");
-        setNewTitle("");
-      }
-    });
-  }
+  const boundCreateModule = createModuleAction.bind(null, courseId);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end gap-2 rounded-md border border-dashed border-border p-3">
+      <form
+        action={async (fd) => {
+          const result = await boundCreateModule(fd);
+          if ("error" in result) {
+            toast.error(result.error);
+            return;
+          }
+          window.location.reload();
+        }}
+        className="flex items-end gap-2 rounded-md border border-dashed border-border p-3"
+      >
         <div className="flex-1 space-y-1">
           <span className="text-sm font-medium">Novo módulo</span>
           <Input
+            name="title"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             placeholder="Ex: Fundamentos"
           />
         </div>
-        <Button type="button" onClick={handleCreate} disabled={isPending}>
+        <Button type="submit" disabled={isPending}>
           Adicionar
         </Button>
-      </div>
+      </form>
 
       {modules.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -155,11 +159,12 @@ function ModuleRow({ courseId, module: m }: { courseId: string; module: ModuleIt
     fd.set("title", renameValue.trim());
     startTransition(async () => {
       const result = await renameModuleAction(m.id, fd);
-      if ("error" in result) toast.error(result.error);
-      else {
-        toast.success("Módulo renomeado");
-        setEditing(false);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
       }
+      setEditing(false);
+      window.location.reload();
     });
   }
 
@@ -167,8 +172,11 @@ function ModuleRow({ courseId, module: m }: { courseId: string; module: ModuleIt
     if (!window.confirm(`Excluir o módulo "${m.title}" e todas as suas aulas?`)) return;
     startTransition(async () => {
       const result = await deleteModuleAction(m.id);
-      if ("error" in result) toast.error(result.error);
-      else toast.success("Módulo excluído");
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      window.location.reload();
     });
   }
 
@@ -234,6 +242,10 @@ function LessonsSubpanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
+  useEffect(() => {
+    setLessons(initial);
+  }, [initial]);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -263,8 +275,11 @@ function LessonsSubpanel({
     if (!window.confirm(`Excluir a aula "${title}"?`)) return;
     startTransition(async () => {
       const result = await deleteLessonAction(id);
-      if ("error" in result) toast.error(result.error);
-      else toast.success("Aula excluída");
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      window.location.reload();
     });
   }
 

@@ -28,7 +28,11 @@ export function QuestionsList({ courseId, questions }: Props) {
   function handleToggle(id: string, active: boolean) {
     startTransition(async () => {
       const result = await toggleQuestionActiveAction(id, active);
-      if ("error" in result) toast.error(result.error);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      window.location.reload();
     });
   }
 
@@ -36,8 +40,11 @@ export function QuestionsList({ courseId, questions }: Props) {
     if (!window.confirm("Excluir esta questão?")) return;
     startTransition(async () => {
       const result = await deleteQuestionAction(id);
-      if ("error" in result) toast.error(result.error);
-      else toast.success("Questão excluída");
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      window.location.reload();
     });
   }
 

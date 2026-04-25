@@ -61,17 +61,10 @@ export function LessonForm({ mode, moduleId, lessonId, defaults, onSaved }: Prop
             : { error: "ID da aula ausente" };
       if ("error" in result) {
         toast.error(result.error);
-      } else {
-        toast.success(mode === "create" ? "Aula criada" : "Aula atualizada");
-        if (mode === "create") {
-          setTitle("");
-          setBunnyVideoId("");
-          setBunnyLibraryId("");
-          setSidebarContent(null);
-          setSidebarPdfUrl("");
-        }
-        onSaved?.();
+        return;
       }
+      onSaved?.();
+      window.location.reload();
     });
   }
 
