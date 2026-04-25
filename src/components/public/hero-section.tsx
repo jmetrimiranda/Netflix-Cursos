@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { categoryLabel } from "@/lib/categories";
 import type { CourseCategory } from "@prisma/client";
 import Link from "next/link";
@@ -59,10 +59,11 @@ export function HeroSection({ course }: { course: HeroCourse | null }) {
           {truncate(course.description, MAX_DESCRIPTION)}
         </p>
         <div className="mt-5">
-          <Link href={`/cursos/${course.slug}`}>
-            <Button size="lg" className="px-5">
-              Começar curso
-            </Button>
+          <Link
+            href={`/cursos/${course.slug}`}
+            className={buttonVariants({ size: "lg", className: "px-5" })}
+          >
+            Começar curso
           </Link>
         </div>
       </div>

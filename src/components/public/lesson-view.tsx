@@ -10,7 +10,7 @@ import { readStudentEmail } from "@/lib/student-email";
 import type { JSONContent } from "@tiptap/react";
 import { ArrowLeftIcon, CheckIcon, FileDownIcon, PlayIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type LessonNavItem = {
   id: string;
@@ -143,14 +143,28 @@ export function LessonView({
     return set;
   }, [enrollment]);
 
-  function markLocalCompleted() {
-    setEnrollment((prev) => {
-      if (!prev) return prev;
-      const next = new Map(prev.byLesson);
-      next.set(lesson.id, { progressPct: 100, completed: true });
-      return { ...prev, byLesson: next };
-    });
-  }
+  const applyProgressUpdate = useCallback(
+    (data: { progressPct: number; completed: boolean }) => {
+      setEnrollment((prev) => {
+        if (!prev) return prev;
+        const current = prev.byLesson.get(lesson.id);
+        if (
+          current &&
+          current.progressPct >= data.progressPct &&
+          current.completed === data.completed
+        ) {
+          return prev;
+        }
+        const next = new Map(prev.byLesson);
+        next.set(lesson.id, {
+          progressPct: Math.max(current?.progressPct ?? 0, data.progressPct),
+          completed: (current?.completed ?? false) || data.completed,
+        });
+        return { ...prev, byLesson: next };
+      });
+    },
+    [lesson.id],
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
@@ -270,7 +284,7 @@ export function LessonView({
           lessonId={lesson.id}
           durationSeconds={lesson.durationSeconds}
           initialProgressPct={optimisticPct}
-          onCompleted={markLocalCompleted}
+          onProgressUpdate={applyProgressUpdate}
         />
       )}
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { COMPLETED_THRESHOLD_PCT } from "@/lib/progress";
 import { useEffect, useRef } from "react";
 
 type Props = {
@@ -8,7 +7,7 @@ type Props = {
   lessonId: string;
   durationSeconds: number | null;
   initialProgressPct: number;
-  onCompleted?: () => void;
+  onProgressUpdate?: (data: { progressPct: number; completed: boolean }) => void;
 };
 
 const TICK_MS = 1_000;
@@ -27,12 +26,11 @@ export function ProgressTracker({
   lessonId,
   durationSeconds,
   initialProgressPct,
-  onCompleted,
+  onProgressUpdate,
 }: Props) {
   const focusedRef = useRef<boolean>(true);
   const elapsedRef = useRef<number>(0);
   const lastSentPctRef = useRef<number>(initialProgressPct);
-  const completedNotifiedRef = useRef<boolean>(initialProgressPct >= COMPLETED_THRESHOLD_PCT);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -69,10 +67,7 @@ export function ProgressTracker({
         if (!res.ok) return;
         const data = (await res.json()) as { progressPct: number; completed: boolean };
         lastSentPctRef.current = Math.max(lastSentPctRef.current, data.progressPct);
-        if (data.completed && !completedNotifiedRef.current) {
-          completedNotifiedRef.current = true;
-          onCompleted?.();
-        }
+        onProgressUpdate?.(data);
       } catch {
         /* swallow network errors; will retry on next tick */
       }
@@ -83,7 +78,7 @@ export function ProgressTracker({
       window.clearInterval(tick);
       window.clearInterval(flush);
     };
-  }, [enrollmentId, lessonId, durationSeconds, onCompleted]);
+  }, [enrollmentId, lessonId, durationSeconds, onProgressUpdate]);
 
   return null;
 }
