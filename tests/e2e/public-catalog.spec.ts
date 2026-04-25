@@ -1,10 +1,11 @@
 import { type Page, expect, test } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
 
 const SEED_COURSE_SLUG = "fundamentos-de-engenharia-civil";
 const SEED_COURSE_TITLE = "Fundamentos de Engenharia Civil";
-const SEED_LESSON_TITLE = "Boas-vindas ao curso";
-const STUDENT_EMAIL = `aluno-${Date.now().toString(36)}@example.com`;
 const LONG = 30_000;
+
+const db = new PrismaClient();
 
 async function clearStudentEmail(page: Page) {
   await page.goto("/cursos");
@@ -18,8 +19,28 @@ async function clearStudentEmail(page: Page) {
   });
 }
 
+let firstLessonId = "";
+
+test.beforeAll(async () => {
+  const course = await db.course.findUnique({
+    where: { slug: SEED_COURSE_SLUG },
+    select: {
+      modules: {
+        orderBy: { order: "asc" },
+        select: { lessons: { orderBy: { order: "asc" }, select: { id: true } } },
+      },
+    },
+  });
+  firstLessonId = course?.modules[0]?.lessons[0]?.id ?? "";
+  if (!firstLessonId) throw new Error("Seed lesson não encontrada");
+});
+
+test.afterAll(async () => {
+  await db.$disconnect();
+});
+
 test.describe
-  .serial("public catalog → course → lesson", () => {
+  .serial("public catalog → course → paywall gates", () => {
     test.setTimeout(120_000);
 
     test("/cursos shows category rows with the seed course", async ({ page }) => {
@@ -36,43 +57,22 @@ test.describe
       ).toBeVisible();
     });
 
-    test("clicking a course card navigates to the course page", async ({ page }) => {
-      await clearStudentEmail(page);
-      await page.goto("/cursos");
-      await page.getByRole("link").filter({ hasText: SEED_COURSE_TITLE }).first().click();
-      await page.waitForURL(`**/cursos/${SEED_COURSE_SLUG}`, { timeout: LONG });
-      await expect(page.getByRole("heading", { level: 1, name: SEED_COURSE_TITLE })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Começar curso" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Fazer prova" })).toBeDisabled();
-    });
-
-    test("email modal flow → first lesson + persistence + in-progress chip", async ({ page }) => {
+    test("course detail without enrollment shows 'Comprar acesso' CTA", async ({ page }) => {
       await clearStudentEmail(page);
       await page.goto(`/cursos/${SEED_COURSE_SLUG}`);
+      await expect(page.getByRole("heading", { level: 1, name: SEED_COURSE_TITLE })).toBeVisible();
+      const cta = page.getByRole("button", { name: /Comprar acesso/i });
+      await expect(cta).toBeVisible({ timeout: LONG });
+      const link = page.locator(`a[href="/cursos/${SEED_COURSE_SLUG}/comprar"]`).first();
+      await expect(link).toBeVisible();
+    });
 
-      await page.getByRole("button", { name: "Começar curso" }).click();
-      const dialog = page.getByRole("dialog", { name: /Informe seu email/i });
-      await expect(dialog).toBeVisible();
-      await dialog.getByRole("textbox", { name: "Email" }).fill(STUDENT_EMAIL);
-      await dialog.getByRole("checkbox").click();
-      await dialog.getByRole("button", { name: "Continuar" }).click();
-
-      await page.waitForURL(/\/cursos\/.+\/aulas\/.+$/, { timeout: LONG });
-      await expect(page.getByRole("heading", { level: 1, name: SEED_LESSON_TITLE })).toBeVisible();
-
-      const stored = await page.evaluate(() =>
-        window.localStorage.getItem("ativa_engenharia_email"),
+    test("lesson route without enrollment shows 'Acesso necessário'", async ({ page }) => {
+      await clearStudentEmail(page);
+      await page.goto(`/cursos/${SEED_COURSE_SLUG}/aulas/${firstLessonId}`);
+      await expect(page.getByRole("heading", { level: 1, name: /Acesso necessário/i })).toBeVisible(
+        { timeout: LONG },
       );
-      expect(stored).toBe(STUDENT_EMAIL);
-
-      const legacy = await page.evaluate(() => window.localStorage.getItem("netflix_cursos_email"));
-      expect(legacy).toBeNull();
-
-      await page.reload();
-      await expect(page.getByRole("heading", { level: 1, name: SEED_LESSON_TITLE })).toBeVisible();
-      await expect(page.getByRole("dialog", { name: /Informe seu email/i })).toHaveCount(0);
-
-      // Aguarda o flush de progresso (>10s) para a aula aparecer "Em progresso".
-      await expect(page.getByText(/Em progresso/i).first()).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByRole("button", { name: /Comprar acesso/i })).toBeVisible();
     });
   });

@@ -1,4 +1,4 @@
-import { CourseDetailView, type ModuleItem } from "@/components/public/course-detail-view";
+import { CourseDetailGate, type ModuleItem } from "@/components/public/course-detail-gate";
 import { categoryLabel } from "@/lib/categories";
 import { db } from "@/lib/db";
 import { formatCentsToBRL } from "@/lib/money";
@@ -60,14 +60,18 @@ export default async function CoursePage({ params }: { params: Promise<RoutePara
           <p className="whitespace-pre-wrap text-sm text-muted-foreground sm:text-base">
             {course.description}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {totalLessons} {totalLessons === 1 ? "aula" : "aulas"} · {course.workloadHours}h ·
-            Certificado {formatCentsToBRL(course.priceCents)}
-          </p>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-muted-foreground sm:text-sm">
+            <span>
+              {totalLessons} {totalLessons === 1 ? "aula" : "aulas"} · {course.workloadHours}h
+            </span>
+            <span className="text-base font-semibold text-foreground sm:text-lg">
+              {formatCentsToBRL(course.priceCents)}
+            </span>
+          </div>
         </div>
       </section>
       <section className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <CourseDetailView courseId={course.id} courseSlug={course.slug} modules={moduleItems} />
+        <CourseDetailGate courseId={course.id} courseSlug={course.slug} modules={moduleItems} />
       </section>
     </article>
   );

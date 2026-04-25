@@ -23,10 +23,13 @@ export async function POST(request: Request) {
 
   const enrollment = await db.enrollment.findUnique({
     where: { id: enrollmentId },
-    select: { studentEmail: true, courseId: true },
+    select: { studentEmail: true, courseId: true, status: true },
   });
   if (!enrollment) {
     return NextResponse.json({ error: "Matrícula não encontrada" }, { status: 404 });
+  }
+  if (enrollment.status !== "active") {
+    return NextResponse.json({ error: "Acesso pendente de pagamento" }, { status: 403 });
   }
 
   const lesson = await db.lesson.findUnique({

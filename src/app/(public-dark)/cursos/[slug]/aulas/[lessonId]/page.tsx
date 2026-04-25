@@ -1,4 +1,5 @@
-import { type LessonNavItem, LessonView } from "@/components/public/lesson-view";
+import { LessonAccessGate } from "@/components/public/lesson-access-gate";
+import type { LessonNavItem } from "@/components/public/lesson-view";
 import { db } from "@/lib/db";
 import type { JSONContent } from "@tiptap/react";
 import { notFound } from "next/navigation";
@@ -35,7 +36,7 @@ export default async function LessonPage({ params }: { params: Promise<RoutePara
   const siblings: LessonNavItem[] = flatLessons.map((l) => ({ id: l.id, title: l.title }));
 
   return (
-    <LessonView
+    <LessonAccessGate
       courseId={course.id}
       courseSlug={course.slug}
       courseTitle={course.title}

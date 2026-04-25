@@ -28,12 +28,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Curso não disponível" }, { status: 404 });
   }
 
-  const enrollment = await db.enrollment.upsert({
+  const enrollment = await db.enrollment.findUnique({
     where: { studentEmail_courseId: { studentEmail, courseId } },
-    update: {},
-    create: { studentEmail, courseId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
-  return NextResponse.json({ enrollmentId: enrollment.id });
+  if (!enrollment) {
+    return NextResponse.json({ exists: false, status: null });
+  }
+  return NextResponse.json({
+    exists: true,
+    status: enrollment.status,
+    enrollmentId: enrollment.id,
+  });
 }

@@ -21,8 +21,20 @@ export async function GET(request: Request) {
 
   const enrollment = await db.enrollment.findUnique({
     where: { studentEmail_courseId: { studentEmail, courseId } },
-    select: { id: true },
+    select: { id: true, status: true },
   });
+
+  if (!enrollment) {
+    return NextResponse.json({ enrollmentId: null, status: null, views: [] });
+  }
+
+  if (enrollment.status !== "active") {
+    return NextResponse.json({
+      enrollmentId: enrollment.id,
+      status: enrollment.status,
+      views: [],
+    });
+  }
 
   const lessons = await db.lesson.findMany({
     where: { module: { courseId } },
@@ -38,7 +50,8 @@ export async function GET(request: Request) {
     : [];
 
   return NextResponse.json({
-    enrollmentId: enrollment?.id ?? null,
+    enrollmentId: enrollment.id,
+    status: enrollment.status,
     views,
   });
 }
