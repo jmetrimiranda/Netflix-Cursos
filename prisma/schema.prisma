@@ -1,7 +1,5 @@
 // Schema Prisma — Netflix-Cursos
-// Em F0 contém apenas AdminUser. As demais entidades (Course, Module, Lesson,
-// Question, Enrollment, LessonView, ExamAttempt, Payment, Certificate) entram
-// em F2 conforme SPEC.md §3.
+// Em F2 contém o modelo de dados completo conforme SPEC §3.1.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,9 +10,164 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CourseCategory {
+  civil
+  mecanica
+  seguranca
+}
+
+enum PaymentStatus {
+  pending
+  approved
+  rejected
+  expired
+}
+
 model AdminUser {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+}
+
+model Course {
+  id                 String         @id @default(cuid())
+  slug               String         @unique
+  title              String
+  description        String
+  thumbnailUrl       String?
+  category           CourseCategory
+  priceCents         Int
+  workloadHours      Int
+  examQuestionsCount Int            @default(10)
+  examPassScore      Float          @default(7.0)
+  published          Boolean        @default(false)
+  featured           Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  modules     Module[]
+  questions   Question[]
+  enrollments Enrollment[]
+
+  @@index([category])
+  @@index([published])
+}
+
+model Module {
+  id       String @id @default(cuid())
+  courseId String
+  title    String
+  order    Int
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, order])
+}
+
+model Lesson {
+  id              String  @id @default(cuid())
+  moduleId        String
+  title           String
+  order           Int
+  bunnyVideoId    String?
+  bunnyLibraryId  String?
+  durationSeconds Int?
+  sidebarContent  Json?
+  sidebarPdfUrl   String?
+
+  module Module       @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  views  LessonView[]
+
+  @@index([moduleId, order])
+}
+
+model LessonView {
+  id            String   @id @default(cuid())
+  studentEmail  String
+  lessonId      String
+  progressPct   Int      @default(0)
+  completed     Boolean  @default(false)
+  lastWatchedAt DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentEmail, lessonId])
+  @@index([studentEmail])
+}
+
+model Question {
+  id        String  @id @default(cuid())
+  courseId  String
+  statement String
+  options   Json
+  active    Boolean @default(true)
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, active])
+}
+
+model Enrollment {
+  id           String   @id @default(cuid())
+  studentEmail String
+  courseId     String
+  startedAt    DateTime @default(now())
+
+  course       Course        @relation(fields: [courseId], references: [id])
+  examAttempts ExamAttempt[]
+  payment      Payment?
+  certificate  Certificate?
+
+  @@unique([studentEmail, courseId])
+  @@index([studentEmail])
+}
+
+model ExamAttempt {
+  id                  String    @id @default(cuid())
+  enrollmentId        String
+  startedAt           DateTime  @default(now())
+  submittedAt         DateTime?
+  score               Float?
+  passed              Boolean?
+  answers             Json
+  selectedQuestionIds Json
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([enrollmentId])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  enrollmentId  String        @unique
+  mpPaymentId   String        @unique
+  amountCents   Int
+  status        PaymentStatus @default(pending)
+  qrCode        String?
+  qrCodeBase64  String?
+  studentName   String
+  studentCpf    String
+  createdAt     DateTime      @default(now())
+  paidAt        DateTime?
+  expiresAt     DateTime
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+
+  @@index([status])
+}
+
+model Certificate {
+  id               String   @id @default(cuid())
+  enrollmentId     String   @unique
+  verificationCode String   @unique
+  pdfUrl           String
+  studentName      String
+  studentCpf       String
+  courseTitle      String
+  workloadHours    Int
+  issuedAt         DateTime @default(now())
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
 }
