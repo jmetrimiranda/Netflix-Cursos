@@ -172,7 +172,7 @@ model Certificate {
   id               String   @id @default(cuid())
   enrollmentId     String   @unique
   verificationCode String   @unique
-  pdfUrl           String
+  pdfUrl           String?
   studentName      String
   studentCpf       String
   courseTitle      String

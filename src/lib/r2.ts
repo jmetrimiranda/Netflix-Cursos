@@ -75,3 +75,18 @@ export function getPublicUrl(key: string): string {
   const cleanKey = key.replace(/^\/+/, "");
   return `${base}/${cleanKey}`;
 }
+
+export async function uploadPdfToR2(key: string, body: Buffer): Promise<string> {
+  const cfg = readConfig();
+  if (!cfg) throw new R2NotConfiguredError();
+  const client = getR2Client();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: cfg.bucket,
+      Key: key,
+      Body: body,
+      ContentType: "application/pdf",
+    }),
+  );
+  return getPublicUrl(key);
+}
