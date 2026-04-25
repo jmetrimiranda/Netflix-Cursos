@@ -74,7 +74,6 @@ async function seedExampleCourse() {
       priceCents: 9900,
       workloadHours: 20,
       examQuestionsCount: 10,
-      examPassScore: 7.0,
       published: true,
       featured: true,
     },
