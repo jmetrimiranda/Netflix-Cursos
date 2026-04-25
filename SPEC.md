@@ -1,28 +1,61 @@
-# SPEC — Netflix-Cursos
+# SPEC — Ativa Engenharia
 
-> Plataforma de cursos online (engenharia civil, mecânica, segurança do trabalho) com catálogo público estilo Netflix, player com material lateral, prova, e emissão de certificado pago via Pix. Admin único para gestão de cursos.
+> Site institucional + plataforma de cursos online da **Ativa Engenharia** (engenharia mecânica, elétrica, civil, climatização, segurança do trabalho). Site institucional apresenta a empresa e seus serviços; plataforma de cursos com catálogo público estilo Netflix, player com material lateral, prova, e emissão de certificado pago via Pix. Admin único para gestão de cursos.
 
 ---
 
 ## 1. Visão & Personas
 
 ### 1.1 Visão
-Uma plataforma leve, moderna, com dois modos:
 
-- **Público (sem conta):** navega pelo catálogo, assiste aulas, faz prova. Só fornece email quando inicia um curso e nome/CPF quando vai comprar o certificado.
+Uma plataforma única, leve e moderna, que combina:
+
+- **Site institucional (público, sem conta):** apresenta a empresa Ativa Engenharia, seus serviços de engenharia (climatização, elétrica, mecânica, civil, segurança do trabalho), responsáveis técnicos, certificações, e canais de contato. É o cartão de visitas digital que substitui o portfólio em PDF.
+- **Plataforma de cursos (público, sem conta):** catálogo estilo Netflix, player com material lateral, prova e certificado. Aluno só fornece email quando inicia um curso e nome/CPF quando vai comprar o certificado.
 - **Admin (um único usuário):** cria/edita cursos, módulos, aulas (com upload de vídeo), material lateral (Tiptap), PDFs, banco de questões.
+
+A integração num só domínio mantém custos mínimos e simplifica operação. O foco principal do site é **vender cursos**, com os serviços de engenharia presentes mas em segundo plano.
 
 ### 1.2 Personas
 
 | Persona | O que faz |
 |---|---|
-| **Aluno (público)** | Entra, navega, assiste, faz prova. Paga Pix se quiser certificado. |
+| **Aluno (público)** | Entra no catálogo, navega, assiste, faz prova. Paga Pix se quiser certificado. |
+| **Cliente potencial (público)** | Conhece a empresa via Home, vê serviços, solicita orçamento via Contato/WhatsApp. |
 | **Admin (Jorge)** | Cria e gerencia cursos. Único admin do sistema. |
 
-### 1.3 Escopo de escala
+### 1.3 Identidade
+
+- **Nome legal:** Ativa Engenharia
+- **Localização:** Espírito Santo (CREA-ES, Corpo de Bombeiros ES)
+- **Slogan:** "Segurança e Qualidade"
+- **Contatos públicos:**
+  - WhatsApp: 27 99818-3686
+  - Instagram: @ativaeng
+  - Email: ativaengmec@gmail.com
+  - Site: www.ativaengenharia.net
+- **Responsáveis técnicos:**
+  - Eduardo Bissoli — Eng. Mecânico / Eng. de Segurança do Trabalho — CREA MT-038597/D
+  - Danilo Marquesini — Eng. Eletricista — CREA BA-300003660-7/D
+  - Renan Venturin Destefani — Eng. Civil — CREA ES-034006/D
+- **Selos institucionais:** CREA-ES, ABNT, Corpo de Bombeiros ES
+
+### 1.4 Escopo de escala
+
 - Até ~1000 alunos/ano
 - ~20–100 sessões simultâneas no pico
+- ~50–200 visitas/mês na parte institucional (estimativa conservadora)
 - Assumir volumes baixos → priorizar simplicidade operacional sobre otimização prematura
+
+### 1.5 Identidade visual
+
+- **Paleta primária:** azul-marinho `#1E3A5F` (extraído da logo)
+- **Paleta secundária:** azul médio `#3D5A80`
+- **Tema híbrido:**
+  - **Light mode** nas páginas institucionais (`/`, `/servicos`, `/quem-somos`, `/faq`, `/contato`)
+  - **Dark mode** no app de cursos (`/cursos`, `/cursos/[slug]`, `/cursos/[slug]/aulas/[id]`) e admin (`/admin/*`)
+- **Tipografia:** Inter (sans-serif geométrica, via `next/font/google`) em todas as páginas
+- **Logo:** `public/images/brand/logo.png` (símbolo + wordmark "Ativa Engenharia")
 
 ---
 
@@ -33,6 +66,7 @@ Uma plataforma leve, moderna, com dois modos:
 | Framework | Next.js 15 (App Router) + React 19 + TypeScript | SOTA pra app + SSR do catálogo + API routes pra webhooks |
 | Package manager | pnpm | Rápido, workspace-ready |
 | Estilo | Tailwind CSS v4 + shadcn/ui | Componentes acessíveis + customização total |
+| Fonte | Inter via `next/font/google` | Sans-serif geométrica moderna, otimizada pro Next |
 | Editor rich text | Tiptap | Headless, extensível, padrão de facto |
 | DB | PostgreSQL 16 (Neon em prod, docker-compose em dev) | Maduro, free tier generoso |
 | ORM | Prisma | DX superior, schema declarativo, migrações automáticas |
@@ -45,6 +79,7 @@ Uma plataforma leve, moderna, com dois modos:
 | Email transacional | Resend + React Email | 3000 grátis/mês, templates em JSX |
 | Certificado PDF | `@react-pdf/renderer` | Componentes React → PDF, fácil manter |
 | Geração QR | `qrcode.react` (fallback se Mercado Pago não retornar base64) | Padrão JS |
+| Carrossel | `embla-carousel-react` | Leve, headless, autoplay plugin oficial |
 | Testes unit | Vitest | Rápido, drop-in do Jest |
 | Testes e2e | Playwright | Gold standard |
 | Lint + format | Biome | Mais rápido que ESLint+Prettier, config única |
@@ -72,6 +107,7 @@ Schema Prisma (resumo conceitual — o schema real vive em `prisma/schema.prisma
 - `examQuestionsCount` (Int, quantas questões sorteadas do banco na prova — default 10)
 - `examPassScore` (Float, nota mínima — default 7.0 de 10)
 - `published` (Boolean, default false)
+- `featured` (Boolean, default false — destaca na home institucional)
 - `createdAt`, `updatedAt`
 
 **`Module`**
@@ -131,78 +167,90 @@ Course (1) ─┬─< Module (N) ─< Lesson (N) ─< LessonView (N)
                                 └── Certificate (0..1)
 ```
 
+### 3.3 Conteúdo institucional (estático, não vive no banco)
+
+Os textos de páginas institucionais (`/`, `/servicos`, `/quem-somos`, `/faq`, `/contato`) ficam em arquivos TypeScript versionados sob `src/content/` (ex: `src/content/services.ts`, `src/content/faq.ts`). Trocar conteúdo institucional = commit no git, não mudança no banco. Razão: o admin não edita esse conteúdo no dia a dia, e versionamento ajuda a auditar mudanças de copy.
+
 ---
 
 ## 4. Fluxos Críticos
 
-### 4.1 Fluxo do aluno (público)
+### 4.1 Fluxo do visitante institucional
 
-1. Acessa `/` → vê **hero** + **rows por categoria** (estilo Netflix, dark mode).
+1. Acessa `/` → vê hero institucional com carrossel autoplay 5s, 2 CTAs ("Ver cursos" e "Solicitar orçamento"), cards "Por que Ativa Engenharia", preview de cursos em destaque, preview de serviços, selos.
+2. Pode navegar para:
+   - `/servicos` → lista completa dos serviços agrupados por categoria
+   - `/quem-somos` → história, missão, responsáveis técnicos
+   - `/faq` → perguntas frequentes
+   - `/contato` → form + WhatsApp
+3. CTAs principais convergem para `/cursos` (foco em cursos) ou `/contato` (foco em serviços).
+
+### 4.2 Fluxo do aluno (cursos)
+
+1. Chega em `/cursos` (via menu, link da home ou direto) → vê **catálogo Netflix** com filtro de categoria + rows horizontais com cards verticais 2:3.
 2. Clica num curso → `/cursos/[slug]`. Vê descrição, módulos, botão "Começar".
 3. Ao clicar "Começar" pela 1ª vez → modal pede email. Ao confirmar:
    - `POST /api/enrollment` cria `Enrollment` (se não existir).
-   - Salva email no `localStorage` pra reconhecer em visitas futuras.
+   - Salva email no `localStorage["ativa_engenharia_email"]` pra reconhecer em visitas futuras.
 4. Abre a 1ª aula → `/cursos/[slug]/aulas/[lessonId]`.
    - **Player Bunny Stream** à esquerda.
    - **Sidebar** à direita com `sidebarContent` (Tiptap renderizado) e download do `sidebarPdfUrl` se houver.
-   - Progresso é reportado a cada 10s via `POST /api/progress` (body: `{lessonId, pct}`) → atualiza `LessonView`. Ao atingir 90% → `completed=true`.
+   - Progresso é reportado a cada 10s via `POST /api/progress` → atualiza `LessonView`. Ao atingir 90% → `completed=true`.
 5. Navegação é livre (pode pular ordem).
 6. **Botão "Fazer prova" só fica ativo quando TODAS as `Lesson` do curso estão `completed=true` pra aquele email**.
 7. Prova:
-   - `POST /api/exam/start` sorteia `examQuestionsCount` questões ativas do curso → cria `ExamAttempt` com `selectedQuestionIds`.
+   - `POST /api/exam/start` sorteia `examQuestionsCount` questões ativas do curso → cria `ExamAttempt`.
    - Aluno responde → `POST /api/exam/submit` corrige, grava `score` e `passed`.
-   - Sem tempo limite. Tentativas ilimitadas (cada submit cria novo `ExamAttempt`).
+   - Tentativas ilimitadas.
 8. Se `passed` && sem `Payment.approved`:
-   - Mostra mensagem "Parabéns, você foi aprovado! Para receber seu certificado, preencha seus dados e faça o pagamento."
-   - Formulário pede **nome completo** e **CPF** (validação: dígitos verificadores).
-9. **Checkout Pix:**
-   - `POST /api/pix/create` com `{enrollmentId, studentName, studentCpf}`:
-     - Chama MP API → cria payment com `payment_method_id: "pix"`.
-     - Salva `Payment` com `qr_code`, `qr_code_base64`, `expiresAt` (30min).
-     - Retorna QR code + `copia-e-cola`.
-   - Frontend mostra QR + botão "copiar código" + contador regressivo.
-   - **Polling primário:** frontend chama `GET /api/pix/status/[paymentId]` a cada 3s.
-     - Endpoint consulta MP API (`payment.get`) e atualiza `Payment.status` no banco.
-   - **Webhook secundário (redundância):** `POST /api/pix/webhook` recebe notificações do MP, valida assinatura HMAC (x-signature), busca na API, atualiza status. Idempotente.
-10. Quando `status=approved`:
-    - Emite certificado (ver 4.3).
-    - Redireciona pra `/cursos/[slug]/certificado` que mostra preview + botão de download + mensagem "Enviamos pro seu email também".
+   - Mostra mensagem de parabéns.
+   - Formulário pede **nome completo** e **CPF** (validação dígitos).
+9. **Checkout Pix:** (ver fluxo F4 detalhado em §4.4)
+10. Quando `status=approved`: emite certificado, redireciona pra tela de certificado.
 
-### 4.2 Fluxo do admin
+### 4.3 Fluxo do admin
 
 1. `/admin/login` → credenciais.
 2. `/admin` → dashboard com cards: total de cursos, alunos (distinct `studentEmail` em `Enrollment`), certificados emitidos, receita acumulada (sum `Payment.amountCents` onde `status=approved`).
 3. `/admin/cursos` → lista com CRUD. Criar/editar:
-   - Dados do curso (título, descrição, preço em BRL, carga horária, categoria).
-   - Upload de thumbnail → frontend pega **URL pre-signed do R2** via `POST /api/admin/r2/presign`, faz PUT direto pro R2.
+   - Dados do curso (título, descrição, preço em BRL, carga horária, categoria, featured).
+   - Upload de thumbnail → presigned R2.
    - Publicar (toggle `published`).
 4. `/admin/cursos/[id]` → edita módulos e aulas:
    - CRUD de `Module` (drag-to-reorder).
-   - CRUD de `Lesson`:
-     - Upload de vídeo → **direto pro Bunny via TUS** (não passa pelo Vercel). Backend chama `POST /api/admin/bunny/create-video` pra obter `videoId` + `uploadUrl`. Cliente faz upload TUS resumível. Ao terminar, backend salva `bunnyVideoId` e `bunnyLibraryId` na `Lesson`.
-     - Editor Tiptap pro `sidebarContent`.
-     - Upload opcional de PDF → R2 (mesmo fluxo da thumbnail).
-5. `/admin/cursos/[id]/questoes` → CRUD de banco de questões (enunciado + 4 opções + marca a correta).
-6. `/admin/alunos` → lista distinct emails com: cursos iniciados, provas feitas, certificados pagos.
+   - CRUD de `Lesson` (upload TUS pro Bunny, Tiptap pro `sidebarContent`, PDF opcional).
+5. `/admin/cursos/[id]/questoes` → CRUD de banco de questões.
+6. `/admin/alunos` → lista distinct emails com cursos iniciados, provas feitas, certificados pagos.
 
-### 4.3 Emissão do certificado (pós-Pix aprovado)
+### 4.4 Emissão do certificado (pós-Pix aprovado)
 
 1. Trigger: `Payment.status` vira `approved` (via polling ou webhook — ambos idempotentes).
 2. Gera `verificationCode` (`EC-` + 8 chars aleatórios base32).
 3. Renderiza PDF com `@react-pdf/renderer`:
    - Template único (`src/lib/pdf/CertificateTemplate.tsx`).
+   - Logo Ativa Engenharia no topo.
+   - Selos CREA-ES, ABNT, Bombeiros ES no rodapé.
    - Dados dinâmicos: `studentName`, `studentCpf`, `courseTitle`, `workloadHours`, `issuedAt` formatada em PT-BR, `verificationCode`, QR code apontando pra `https://<domínio>/verificar/<code>`.
 4. Upload do buffer pro R2 em `certificates/<verificationCode>.pdf` → salva `pdfUrl`.
 5. Cria `Certificate` no banco.
-6. Envia email via Resend com link pro PDF (template em `src/emails/CertificateIssued.tsx`).
+6. Envia email via Resend (template em `src/emails/CertificateIssued.tsx`).
 7. Frontend detecta status via polling → redireciona pra tela do certificado.
 
-### 4.4 Verificação pública
+### 4.5 Verificação pública
 
 - `/verificar/[codigo]` (SSR):
   - Busca `Certificate` por `verificationCode`.
-  - Se encontra: mostra página com dados (nome, curso, carga horária, data, ✓ válido).
+  - Se encontra: mostra página com dados (nome, curso, carga horária, data, ✓ válido) + selos institucionais.
   - Se não: "Código inválido."
+
+### 4.6 Fluxo de contato (orçamento)
+
+1. Visitante chega em `/contato` (via menu ou CTA "Solicitar orçamento" na home/serviços).
+2. Vê:
+   - Form simples: nome, email, telefone, mensagem.
+   - Botão grande verde: "Falar agora pelo WhatsApp" → abre `https://wa.me/5527998183686?text=...` (mensagem pré-preenchida).
+   - Card de contatos diretos (email, Instagram).
+3. Submit do form abre o cliente de email do usuário (`mailto:`) com os dados pré-preenchidos. **Sem backend nesta versão.** Backend SMTP (Resend) entra em F5 ou conforme demanda.
 
 ---
 
@@ -225,50 +273,68 @@ Course (1) ─┬─< Module (N) ─< Lesson (N) ─< LessonView (N)
 ### ADR-001: Vídeo no Bunny Stream em vez de self-host ou Mux
 **Contexto:** preciso host de vídeo barato pra ~1000 usuários/ano, com player embed e CDN.
 **Decisão:** Bunny Stream.
-**Justificativa:** Mux começa em ~$20/mês; Cloudflare Stream cobra $5/1k min armazenados; Bunny custa ~$0.005/GB armazenado + $0.01/GB entregue → estimado $2–5/mês pro projeto. Player incluso, API simples, TUS pra upload resumível. Self-host (S3+HLS+FFmpeg) traz complexidade desproporcional ao volume.
-**Consequências:** Lock-in leve no Bunny (mas vídeos podem ser re-exportados se migrar).
+**Justificativa:** Mux começa em ~$20/mês; Cloudflare Stream cobra $5/1k min armazenados; Bunny custa ~$0.005/GB armazenado + $0.01/GB entregue → estimado $2–5/mês pro projeto. Player incluso, API simples, TUS pra upload resumível.
+**Consequências:** Lock-in leve no Bunny.
 
 ### ADR-002: R2 em vez de S3/Supabase Storage
-**Contexto:** storage pra PDFs, thumbs, certificados.
+**Contexto:** storage pra PDFs, thumbs, certificados, imagens institucionais.
 **Decisão:** Cloudflare R2.
-**Justificativa:** Egress zero (baixa estrutura de custos pra downloads de certificados). S3-compatível (troca de provider é 1 linha). Mais barato que S3 e Supabase Storage na faixa de uso.
-**Consequências:** Precisa conta Cloudflare (que já vai existir se usar Workers no futuro).
+**Justificativa:** Egress zero, S3-compatível, mais barato que S3 e Supabase Storage na faixa de uso.
+**Consequências:** Precisa conta Cloudflare.
 
 ### ADR-003: Mercado Pago para Pix
 **Contexto:** receber Pix no Brasil, MEI.
 **Decisão:** Mercado Pago (SDK oficial Node).
-**Justificativa:** MEI ✓, sem mensalidade, docs em PT-BR, maior ecossistema de exemplos no Brasil, webhook bem documentado.
-**Consequências:** Taxa por transação (~0.99%). Webhook precisa verificação HMAC (`x-signature`). Em dev, webhook testado via `cloudflared tunnel` (incluso no dev container) ou — mais simples — via polling como canal primário.
+**Justificativa:** MEI ✓, sem mensalidade, docs em PT-BR, maior ecossistema de exemplos no Brasil.
+**Consequências:** Taxa por transação (~0.99%). Webhook precisa verificação HMAC.
 
 ### ADR-004: Polling como canal primário de status Pix, webhook como redundância
-**Contexto:** Status do pagamento tem que chegar ao frontend. Webhooks são mais elegantes mas exigem URL pública em dev.
-**Decisão:** Frontend faz polling a cada 3s em `/api/pix/status/[id]` (que consulta MP direto). Webhook também existe, valida assinatura, é idempotente, e serve como reforço.
-**Justificativa:** Na escala (20–100 simultâneos), polling de 3s é trivial. Remove complexidade de túnel em dev. Webhook garante que o status é atualizado mesmo se o aluno fechar a aba.
-**Consequências:** Ambos caminhos atualizam o mesmo registro `Payment` — operações devem ser idempotentes (use `UPDATE WHERE status != 'approved'`).
+**Contexto:** Status do pagamento tem que chegar ao frontend.
+**Decisão:** Polling 3s em `/api/pix/status/[id]`. Webhook como reforço, idempotente.
+**Justificativa:** Na escala (20–100 simultâneos), polling de 3s é trivial. Remove complexidade de túnel em dev.
+**Consequências:** Ambos caminhos atualizam o mesmo registro `Payment` — operações devem ser idempotentes.
 
 ### ADR-005: Certificado pré-renderizado em vez de on-demand
-**Contexto:** Certificado é imutável. Pode ser gerado 1x ou toda vez que o aluno pedir.
+**Contexto:** Certificado é imutável.
 **Decisão:** Gerar 1x após Pix aprovado, salvar no R2, reusar a URL.
-**Justificativa:** Imutabilidade garantida (hash do PDF é estável), latência zero no download, custo de CPU baixo, URL de verificação simples.
-**Consequências:** Storage cresce linearmente com certificados emitidos (cada PDF ~50–100 KB → 1000 certs = ~100 MB/ano, trivial).
+**Justificativa:** Imutabilidade garantida, latência zero no download, custo de CPU baixo.
+**Consequências:** Storage cresce linearmente com certificados emitidos (trivial).
 
 ### ADR-006: Upload de vídeo direto pro Bunny (TUS), não pelo Vercel
-**Contexto:** Vercel serverless tem limite de 4.5 MB em payloads; vídeos são grandes.
-**Decisão:** Cliente faz TUS upload direto pro Bunny. Backend só orquestra.
-**Justificativa:** Padrão SOTA (Mux, Bunny, YouTube fazem igual). Evita timeout. UI de progresso funciona nativamente com TUS.
-**Consequências:** Admin precisa conectividade decente pra upload. Sem retry automático no nosso lado (mas TUS é resumível).
+**Contexto:** Vercel serverless tem limite de 4.5 MB em payloads.
+**Decisão:** Cliente faz TUS upload direto pro Bunny.
+**Justificativa:** Padrão SOTA (Mux, Bunny, YouTube fazem igual). Evita timeout.
+**Consequências:** Admin precisa conectividade decente.
 
 ### ADR-007: Auth.js (NextAuth v5) com Credentials provider, apenas 1 admin
-**Contexto:** Só 1 admin, sem registro público, sem OAuth.
-**Decisão:** Auth.js v5 + Credentials. Seed cria o admin único no `prisma/seed.ts`.
-**Justificativa:** Auth.js é o padrão do ecossistema Next. Credentials é trivial pra 1 user. Senha hasheada com argon2.
-**Consequências:** Se no futuro quiser múltiplos admins, só remover a constraint de seed — a tabela já existe.
+**Contexto:** Só 1 admin, sem registro público.
+**Decisão:** Auth.js v5 + Credentials. Seed cria o admin único.
+**Justificativa:** Padrão do ecossistema Next. Trivial pra 1 user.
+**Consequências:** Se quiser múltiplos admins, só remover constraint de seed.
 
 ### ADR-008: Prisma em vez de Drizzle
 **Contexto:** ORM TypeScript.
 **Decisão:** Prisma.
-**Justificativa:** Usuário conhece JS e Python — Prisma tem melhor DX (schema declarativo legível, migrações automáticas, Studio pra debug). Drizzle é mais performático mas tem curva maior.
-**Consequências:** Build size um pouco maior (irrelevante aqui).
+**Justificativa:** Melhor DX (schema declarativo, migrações automáticas, Studio).
+**Consequências:** Build size um pouco maior (irrelevante).
+
+### ADR-009: Site institucional + plataforma de cursos no mesmo Next.js, não separados
+**Contexto:** Ativa Engenharia tem identidade dupla (empresa de serviços + escola de cursos). Tecnicamente seria possível separar em dois domínios/repos.
+**Decisão:** Tudo num só Next.js, sob mesmo domínio (ativaengenharia.net).
+**Justificativa:** Custo zero adicional, simplicidade operacional, SEO compartilhado, UX coesa pro usuário que pode ser cliente E aluno. Foco principal é cursos (CTA hero), serviços ficam complementares.
+**Consequências:** Aplicação fica maior. Tema híbrido (light institucional + dark app) requer lógica de detecção de rota no layout.
+
+### ADR-010: Tema híbrido (light institucional + dark app) em vez de monotema
+**Contexto:** A logo Ativa é projetada pra fundo claro (azul-marinho sobre cinza claro). O catálogo de cursos foi desenhado dark mode na F3 (estilo Netflix).
+**Decisão:** Páginas institucionais em light mode (`/`, `/servicos`, `/quem-somos`, `/faq`, `/contato`). App de cursos e admin em dark mode (`/cursos/*`, `/admin/*`).
+**Justificativa:** Casa com a identidade visual da marca em ambas as personas (cliente quer profissionalismo claro, aluno quer imersão escura como em streaming). Permite reaproveitar quase 100% da F3 sem rework.
+**Consequências:** O `<PublicHeader/>` precisa detectar a rota e adaptar tema (logo + cores). Gera +1 versão da logo (clara pra fundo escuro). Documentação interna mais cuidadosa pra não misturar tokens.
+
+### ADR-011: Conteúdo institucional em arquivos TS, não no banco
+**Contexto:** Textos de "Quem Somos", lista de serviços, FAQ, contatos não mudam toda hora e são curtos.
+**Decisão:** Arquivos sob `src/content/` (ex: `services.ts`, `faq.ts`, `team.ts`, `contact.ts`).
+**Justificativa:** Versionamento via git, sem backend, sem CMS extra, type-safe (TS infere). Admin não edita esse conteúdo no painel.
+**Consequências:** Mudar conteúdo = commit + deploy. Pra esse volume de mudanças (raras), é o trade-off certo. Se virar volume alto, F6+ pode introduzir admin de "Páginas Institucionais".
 
 ---
 
@@ -282,7 +348,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NODE_ENV=development
 
 # --- Database (Neon em prod, docker-compose em dev) ---
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/netflix_cursos
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ativa_engenharia
 
 # --- Auth.js ---
 AUTH_SECRET=  # pnpm dlx auth secret
@@ -303,12 +369,12 @@ BUNNY_CDN_HOSTNAME=                  # ex: vz-xxxx.b-cdn.net
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
-R2_BUCKET=netflix-cursos
+R2_BUCKET=ativa-engenharia
 R2_PUBLIC_URL=                       # ex: https://pub-xxxx.r2.dev ou domínio custom
 
 # --- Resend ---
 RESEND_API_KEY=
-RESEND_FROM=Netflix Cursos <no-reply@placeholder.com>
+RESEND_FROM=Ativa Engenharia <no-reply@ativaengenharia.net>
 ```
 
 ---
@@ -323,6 +389,9 @@ RESEND_FROM=Netflix Cursos <no-reply@placeholder.com>
 - Múltiplos idiomas (só PT-BR)
 - SEO avançado (sitemap + metadata básicos bastam)
 - Analytics (Posthog/Plausible etc.)
+- Backend de form de contato (mailto: nesta versão; SMTP fica pra F5+)
+- CMS de páginas institucionais (TS + git nesta versão)
+- Sistema de orçamento online (botão WhatsApp resolve)
 
 ---
 
@@ -333,10 +402,13 @@ RESEND_FROM=Netflix Cursos <no-reply@placeholder.com>
 | Admin esquece senha | Seed idempotente + endpoint CLI `pnpm admin:reset-password` (documentado no README) |
 | Webhook MP chega duplicado | Toda atualização é `UPDATE WHERE status != 'approved'` (idempotente) |
 | Aluno perde acesso ao certificado | `verificationCode` é permanente; `/verificar/[codigo]` público; email fica no inbox |
-| Upload de vídeo trava meio do caminho | TUS é resumível; admin pode retomar |
+| Upload de vídeo trava meio do caminho | TUS é resumível |
 | Preço muda depois da venda | `Payment.amountCents` guarda o valor no momento da compra (snapshot) |
 | CPF inválido | Validar dígitos verificadores no frontend + backend com Zod |
-| Marca "Netflix" no nome | Não é trademark issue pra nome de repo/projeto interno; nome público pode ser outro ("EngCursos", "Metri Engenharia", etc.) no UI |
+| Form de contato sem backend pode parecer quebrado | Botão WhatsApp grande e proeminente; form cai no `mailto:` que é fluxo padrão |
+| Carrossel autoplay quebra a11y | Pausar no hover/foco, controles de seta acessíveis, respeitar `prefers-reduced-motion` |
+| Tema híbrido confunde o usuário | Header se adapta consistentemente à rota; paleta primary é a mesma em ambos os temas |
+| Logo no fundo escuro fica estranha | Versão clara da logo (`logo-light.png` com filter ou arquivo separado) usada em rotas dark |
 
 ---
 
