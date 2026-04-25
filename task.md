@@ -238,3 +238,77 @@
 - **Credenciais reais de Bunny Stream / Cloudflare R2** continuam pendentes; o player public-side trata o 0-credentials caso com placeholder "Vídeo não disponível", e a UI admin segue mostrando 503 amigável (vide F2). F4 vai precisar de **Mercado Pago** (`MERCADOPAGO_ACCESS_TOKEN` em modo `TEST-`), **Resend** (`RESEND_API_KEY` em test mode ou MailHog) e **R2** (pra upload do PDF do certificado) — sandbox do MP basta pra começar.
 - O fallback de tracking via dwell completa a aula em ≥60s focados quando `durationSeconds` é null. Quando o webhook do Bunny começar a popular `Lesson.durationSeconds` (já existe coluna no schema), o threshold passa automaticamente pra `duration*0.9`. Não precisa migration nem mudança no código.
 - Branch protection no GitHub: ainda pendente (vide entradas anteriores). Não bloqueia F3 nem F4.
+
+---
+## 2026-04-25 17:55 — feature/rebrand-landing — Rebrand Ativa Engenharia + Landing Institucional (F3.5)
+
+**Fase:** F3.5
+**PR:** em andamento (aberto contra `develop`)
+
+### O que foi feito
+- **Rebrand global** ("Netflix-Cursos" → "Ativa Engenharia"): `package.json` (`name: "ativa-engenharia"`), `README.md`, `prisma/schema.prisma`, `src/app/layout.tsx` metadata, `src/components/admin/sidebar.tsx`, `src/components/public/header.tsx`, `RESEND_FROM` em `.env`/`.env.example`, `R2_BUCKET=ativa-engenharia` em `.env`/`.env.example`. Devcontainer renomeado pra `"Ativa Engenharia"`; clone URL e workspaceFolder do GitHub mantidos como `Netflix-Cursos` (o repo ainda se chama assim por motivos históricos — registrado no README).
+- **Banco renomeado** de `netflix_cursos` para `ativa_engenharia`. `DATABASE_URL` atualizado em `.env`, `.env.example` e `.devcontainer/docker-compose.yml` (`POSTGRES_DB`, healthcheck). Banco novo criado e seed rodado dentro do dev container. PR description documenta para o Jorge: `createdb ativa_engenharia && pnpm db:migrate && pnpm db:seed` (ou rebuild do dev container).
+- **Migração de `localStorage`** sem perda de progresso: `STUDENT_EMAIL_KEY = "ativa_engenharia_email"`, `LEGACY_STUDENT_EMAIL_KEY = "netflix_cursos_email"`. `readStudentEmail()` lê o key novo primeiro; se ausente e o legado existir, copia o valor pra chave nova, apaga o legado e retorna. Coberto por 4 testes Vitest em `tests/unit/student-email-migration.test.ts`.
+- **Tipografia + paleta**: `Inter` via `next/font/google` no `RootLayout` (sem `Geist`), com `--font-sans` mapeando `font-sans`/`font-mono`/`font-heading`. `globals.css` redefiniu todos os tokens shadcn em HSL com paleta navy: light `--primary: hsl(215 53% 25%)` (`#1E3A5F`), `--accent: hsl(213 35% 37%)` (`#3D5A80`); dark `--background: hsl(215 35% 6%)` (navy night, não preto puro). RootLayout deixou de forçar `className="dark"` no `<html>`.
+- **Tema híbrido por route group**: `(public)` foi dividido em `(public-light)` (institucional, `/`, `/servicos`, `/quem-somos`, `/faq`, `/contato`) e `(public-dark)` (catálogo + aulas, `/cursos`, `/cursos/[slug]`, `/cursos/[slug]/aulas/[lessonId]`). O layout dark aplica `className="dark"` num wrapper `<div>`, o light não. Admin segue dark via `RootLayout` da rota `/admin` (sem mudança).
+- **PublicHeader reescrito** como Client Component que usa `usePathname()` (`isCursoRoute`) pra escolher tema próprio: header escuro com logo invertida (`brightness(0) invert(1)`) em rotas `/cursos*`, header claro caso contrário. Menu de 6 itens (Home/Serviços/Cursos/Quem Somos/FAQ/Contato) com item ativo destacado, drawer mobile (toggle hamburger/X, lock body scroll, fecha em cada navegação) e botão WhatsApp à direita no desktop.
+- **PublicFooter novo** com 4 colunas (brand+slogan / nav / contato com WhatsApp+email+Instagram+site / responsáveis técnicos com CREA) + linha de copyright; aceita `variant: "light" | "dark"` pra casar com o layout em que é montado.
+- **HeroCarousel**: `embla-carousel-react` + `embla-carousel-autoplay` (5s, pausa em hover/focus, respeita `prefers-reduced-motion`), setas e dots clicáveis, `next/image priority` no primeiro slide pra LCP. Texto fixo em overlay (não muda entre slides).
+- **WhatsAppButton** reusable com 3 variants (`primary`, `outline`, `icon`), abre `https://wa.me/5527998183686?text=...` em nova aba. Usado no header desktop, footer, home, /servicos e /contato.
+- **ContactForm** client com Zod, sem backend: monta um `mailto:ativaengmec@gmail.com` com subject + body pré-preenchidos e dispara `window.location.href`; toast de sucesso pelo `sonner`.
+- **FaqAccordion** baseado em `radix-ui` (Accordion exportado do `radix-ui` umbrella, sem instalar primitivo separado), com chevron animado e tipografia padrão.
+- **Conteúdo institucional** todo em TS (ADR-011): `src/content/contact.ts` (números, handles, `buildWhatsAppUrl`), `src/content/team.ts` (3 responsáveis técnicos com CREA), `src/content/about.ts` (hero, missão, visão preventiva, responsabilidade ambiental, 4 diferenciais), `src/content/faq.ts` (10 perguntas placeholder), `src/content/seals.ts` (CREA-ES, ABNT, CB-ES), `src/content/services.ts` (~25 serviços agrupados em 6 categorias do PDF da empresa).
+- **Páginas novas/movidas**:
+  - `/` (institucional, light): HeroCarousel + headline "Soluções integradas em engenharia: segurança, qualidade e excelência" + CTAs "Ver cursos" / "Solicitar orçamento" + 4 cards de diferenciais com ícones lucide (Award/Sparkles/ShieldCheck/Wrench) + preview "Cursos em destaque" (até 3 cursos publicados, ordenados por `featured` desc) com cards 2:3 e link "Ver todos" + preview de 6 serviços + selos institucionais + CTA card final com WhatsApp.
+  - `/servicos` (light): hero compacto + 6 cards (1 por categoria) com bullets `CheckCircle2` + CTA "Solicite um orçamento".
+  - `/quem-somos` (light): hero institucional + imagem da equipe (`hero-02.png`) + 3 cards (missão / visão preventiva / responsabilidade ambiental) + 3 cards de responsáveis técnicos com CREA.
+  - `/faq` (light): hero + FaqAccordion com 10 itens + card "sua dúvida não está aqui? WhatsApp".
+  - `/contato` (light): hero + grid 2 colunas: à esquerda card verde com WhatsApp em destaque + ContactForm; à direita 4 cards de contatos diretos (email, Instagram, site, atuação) com ícones.
+  - `/cursos` (dark, **substitui o catálogo antigo de `/`**): hero compacto "Catálogo de cursos" + chips de filtro `?categoria=civil|mecanica|seguranca` (Server Component lê `searchParams`) + rows por categoria (em modo "Todas") ou row única (modo filtrado) com cards verticais 2:3.
+- **`<CourseCard/>`** ganhou variant `"poster"` (2:3, narrower) ao lado da `"thumbnail"` (16:9). `<CourseRow/>` repassa o variant. `hero-section.tsx` (usado pelo catálogo antigo de `/`) deletado.
+- **Testes E2E**:
+  - `tests/e2e/smoke.spec.ts` adaptado: agora espera o link `aria-label="Ativa Engenharia — página inicial"` no `banner` (header) — escopado pra evitar match no footer.
+  - `tests/e2e/public-catalog.spec.ts` adaptado: catálogo agora vive em `/cursos` em vez de `/`. Limpeza de localStorage cobre tanto a chave nova quanto a legada. Validação adicional: depois do submit do modal, `localStorage["ativa_engenharia_email"]` tem o email e `localStorage["netflix_cursos_email"]` permanece nulo.
+  - `tests/e2e/public-landing.spec.ts` (novo): 5 specs — (a) `/` mostra brand + 6 itens de nav + headline + CTA "Ver cursos"; (b) clique em "Ver cursos" navega pra `/cursos` com `Catálogo de cursos`; (c) `/contato` tem `<a href="https://wa.me/5527998183686...">`; (d) `/servicos` lista PMOC/SPDA/NR-12/NR-13/PCMSO/Inspeção termográfica; (e) `/quem-somos` mostra "Eduardo Bissoli" e "CREA MT-038597".
+  - Total e2e: **13 verdes** (3 admin-login + 1 admin-cms + 1 smoke + 3 public-catalog + 5 public-landing).
+- **Testes Unit**:
+  - `tests/unit/whatsapp-url.test.ts` (novo, 3 testes): mensagem default, custom, encoding correto + roundtrip.
+  - `tests/unit/student-email-migration.test.ts` (novo, 4 testes): chave nova existe / legada existe → migra / nada existe / writeStudentEmail só toca a chave nova.
+  - Total: **35 testes** Vitest (era 28; +7).
+- **Build production**: `pnpm build` gera 19 rotas estaticamente OK, incluindo `/`, `/servicos`, `/cursos`, `/cursos/[slug]`, `/cursos/[slug]/aulas/[lessonId]`, `/quem-somos`, `/faq`, `/contato`.
+
+### Arquivos tocados
+- **Rebrand**: `package.json`, `README.md`, `.env`, `.env.example`, `.devcontainer/docker-compose.yml`, `.devcontainer/devcontainer.json`, `prisma/schema.prisma`, `src/app/layout.tsx`, `src/components/admin/sidebar.tsx`, `src/components/public/header.tsx`, `src/lib/student-email.ts`.
+- **Tema/fonte**: `src/app/layout.tsx`, `src/app/globals.css`.
+- **Layouts (públicos)**: `src/app/(public-light)/layout.tsx` (novo), `src/app/(public-dark)/layout.tsx` (movido de `(public)`).
+- **Componentes**: `src/components/public/header.tsx` (reescrito), `src/components/public/footer.tsx` (novo), `src/components/public/hero-carousel.tsx` (novo), `src/components/public/faq-accordion.tsx` (novo), `src/components/public/contact-form.tsx` (novo), `src/components/public/whatsapp-button.tsx` (novo), `src/components/public/course-card.tsx` (variant `poster` adicionada), `src/components/public/course-row.tsx` (forward variant), `src/components/public/hero-section.tsx` (deletado).
+- **Páginas**: `src/app/(public-light)/page.tsx`, `src/app/(public-light)/servicos/page.tsx`, `src/app/(public-light)/quem-somos/page.tsx`, `src/app/(public-light)/faq/page.tsx`, `src/app/(public-light)/contato/page.tsx`, `src/app/(public-dark)/cursos/page.tsx` (todas novas); `src/app/(public-dark)/page.tsx` (deletado).
+- **Conteúdo**: `src/content/{about,contact,faq,seals,services,team}.ts` (todos novos).
+- **Helpers**: `src/lib/public-nav.ts` (novo).
+- **Testes**: `tests/e2e/{smoke,public-catalog}.spec.ts` (adaptados), `tests/e2e/public-landing.spec.ts` (novo), `tests/unit/{whatsapp-url,student-email-migration}.test.ts` (novos).
+- **Deps**: `embla-carousel-react`, `embla-carousel-autoplay` adicionadas ao `package.json` + `pnpm-lock.yaml`.
+
+### Decisões
+- **Tema híbrido implementado via route groups + classe `dark` num wrapper `<div>`**, e não via `className` no `<html>` ou via `usePathname` num único layout. Justificativa: shadcn-base-nova depende de `.dark` num ancestral pra trocar tokens; ter dois layouts independentes deixa a transição visual clara e permite aplicar elementos específicos do dark (background da home dark, header invert) sem condicionais por toda a árvore. O `<PublicHeader/>` ainda usa `usePathname()` (Client Component) para gerar **classes Tailwind** de cor do logo/menu por rota, redundante com a classe `dark` mas exigido pelo prompt e confiável quando o usuário navega entre `(public-light)` e `(public-dark)` via SPA.
+- **Logo único, com `dark:brightness-0 dark:invert` no `<img>`** quando o header está em modo dark. Não foi criada `logo-light.png` — o filtro inverte cor da logo navy original e o resultado lê bem sobre o background `hsl(215 35% 6%)`. Caso a logo evolua pra um design que não tolere o filtro (ex: cores adicionais), basta substituir o asset por uma versão clara e remover o `dark:` do CSS.
+- **`/cursos` Server Component lê `searchParams` Promise** (Next 15 ainda exige await em sync-dynamic APIs). O filtro é via Link com `?categoria=...` em vez de Client state — o que mantém o catálogo inteiro server-rendered (SEO-friendly) e dispensa `useState`/`useRouter` na página.
+- **CourseCard variant `poster`** (2:3) coexiste com `thumbnail` (16:9). Não criei dois componentes separados porque o body abaixo do thumbnail é idêntico — só muda a aspect ratio e a width do wrapper.
+- **`/contato` sem backend (`mailto:`)** conforme SPEC §4.6. WhatsApp em destaque (card verde no topo do form) reflete o que o Jorge usa como canal primário no dia a dia. Backend SMTP via Resend foi explicitamente movido pra F5+ em ADR / SPEC.
+- **`embla-carousel-react@^8`** escolhido por ser a opção mais leve e estável (Mux e Linear usam). O plugin `Autoplay` tem suporte oficial e a API permite respeitar `prefers-reduced-motion` desabilitando o plugin condicionalmente.
+- **`Accordion` direto do umbrella `radix-ui`** (`import { Accordion } from "radix-ui"`) sem instalar primitivo shadcn — o registry `base-nova` não expõe `accordion` ainda e o radix bruto + classes utilitárias dá o mesmo resultado com 5 linhas a menos.
+- **`hero-section.tsx` deletado** em vez de ser deixado dormente: CLAUDE.md §10 ("Avoid backwards-compatibility hacks"). O catálogo antigo de `/` foi reescrito do zero em `/cursos` com layout diferente (sem hero featured de curso), então reaproveitar o componente seria perda de tempo.
+- **Repo path / GitHub URL mantidos** como `Netflix-Cursos`. Renomear o repo no GitHub é uma decisão do Jorge (afeta CI badges, links externos, gh CLI) e não bloqueia o rebrand do produto. Documentado como nota no README.
+
+### Próximos passos (F4 — `feature/prova-pix-cert`)
+- Destravamento da prova quando `areAllLessonsCompleted` (helper já existe) é `true`.
+- `POST /api/exam/start` (sorteia N questões → `ExamAttempt`) + `POST /api/exam/submit` (corrige + `score`/`passed`).
+- Form de pagamento: nome + CPF (validação dígitos) → `POST /api/pix/create` → MP → tela com QR/copia-e-cola/contador 30min + polling 3s.
+- `POST /api/pix/webhook` validando `x-signature`, idempotente.
+- `src/lib/certificates.ts::issueCertificate()` com `@react-pdf/renderer` (template precisa receber a logo Ativa + selos), upload R2, email Resend.
+- `/cursos/[slug]/certificado` + `/verificar/[codigo]` (SSR).
+
+### Blockers / pendências
+- **Banco em prod** (Neon): quando o repo for promovido pra produção, o DB no Neon precisa ser renomeado/recriado de `netflix_cursos` pra `ativa_engenharia` (ou um novo branch criado). No dev local já está OK.
+- **Credenciais externas** ainda pendentes (Mercado Pago, Bunny, R2, Resend). F4 vai precisar pelo menos do MP em modo TEST e R2 pra subir o PDF do certificado.
+- **Renomear repo no GitHub** de `Netflix-Cursos` → `ativa-engenharia` é decisão do Jorge. Quando acontecer, trocar a clone URL no README.md, ajustar `workspaceFolder` no devcontainer e `cd` no README.
+- **Branch protection no GitHub** continua pendente (vide entradas anteriores). Não bloqueia F3.5.

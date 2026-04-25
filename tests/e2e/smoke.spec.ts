@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test("public home renders header and catalog", async ({ page }) => {
+test("public home renders Ativa Engenharia branding", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Netflix-Cursos" })).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: /Ativa Engenharia.*página inicial/i }),
+  ).toBeVisible();
 });
