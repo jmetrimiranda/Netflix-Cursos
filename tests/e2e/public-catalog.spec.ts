@@ -7,9 +7,10 @@ const STUDENT_EMAIL = `aluno-${Date.now().toString(36)}@example.com`;
 const LONG = 30_000;
 
 async function clearStudentEmail(page: Page) {
-  await page.goto("/");
+  await page.goto("/cursos");
   await page.evaluate(() => {
     try {
+      window.localStorage.removeItem("ativa_engenharia_email");
       window.localStorage.removeItem("netflix_cursos_email");
     } catch {
       /* ignore */
@@ -21,19 +22,23 @@ test.describe
   .serial("public catalog → course → lesson", () => {
     test.setTimeout(120_000);
 
-    test("home shows hero and category rows", async ({ page }) => {
+    test("/cursos shows category rows with the seed course", async ({ page }) => {
       await clearStudentEmail(page);
-      await page.goto("/");
-      await expect(page.getByRole("link", { name: "Netflix-Cursos" })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Começar curso" }).first()).toBeVisible();
+      await page.goto("/cursos");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Catálogo de cursos" }),
+      ).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Engenharia Civil", exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("link").filter({ hasText: SEED_COURSE_TITLE }).first(),
       ).toBeVisible();
     });
 
     test("clicking a course card navigates to the course page", async ({ page }) => {
       await clearStudentEmail(page);
-      await page.goto("/");
+      await page.goto("/cursos");
       await page.getByRole("link").filter({ hasText: SEED_COURSE_TITLE }).first().click();
       await page.waitForURL(`**/cursos/${SEED_COURSE_SLUG}`, { timeout: LONG });
       await expect(page.getByRole("heading", { level: 1, name: SEED_COURSE_TITLE })).toBeVisible();
@@ -55,8 +60,13 @@ test.describe
       await page.waitForURL(/\/cursos\/.+\/aulas\/.+$/, { timeout: LONG });
       await expect(page.getByRole("heading", { level: 1, name: SEED_LESSON_TITLE })).toBeVisible();
 
-      const stored = await page.evaluate(() => window.localStorage.getItem("netflix_cursos_email"));
+      const stored = await page.evaluate(() =>
+        window.localStorage.getItem("ativa_engenharia_email"),
+      );
       expect(stored).toBe(STUDENT_EMAIL);
+
+      const legacy = await page.evaluate(() => window.localStorage.getItem("netflix_cursos_email"));
+      expect(legacy).toBeNull();
 
       await page.reload();
       await expect(page.getByRole("heading", { level: 1, name: SEED_LESSON_TITLE })).toBeVisible();

@@ -13,7 +13,7 @@ export function AdminSidebar() {
     <aside className="flex h-screen w-60 flex-col border-r border-border bg-card">
       <div className="px-4 py-5">
         <Link href="/admin" className="text-base font-semibold">
-          Netflix-Cursos
+          Ativa Engenharia
         </Link>
         <p className="text-xs text-muted-foreground">Painel administrativo</p>
       </div>

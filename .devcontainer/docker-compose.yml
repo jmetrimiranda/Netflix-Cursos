@@ -8,7 +8,7 @@ services:
     command: sleep infinity
     network_mode: service:db
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/netflix_cursos
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ativa_engenharia
 
   db:
     image: postgres:16
@@ -16,11 +16,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: netflix_cursos
+      POSTGRES_DB: ativa_engenharia
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d netflix_cursos"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ativa_engenharia"]
       interval: 5s
       timeout: 5s
       retries: 10

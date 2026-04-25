@@ -1,4 +1,4 @@
-// Schema Prisma — Netflix-Cursos
+// Schema Prisma — Ativa Engenharia
 // Em F2 contém o modelo de dados completo conforme SPEC §3.1.
 
 generator client {

@@ -1,6 +1,6 @@
-# Netflix-Cursos
+# Ativa Engenharia
 
-Plataforma de cursos online (engenharia civil, mecânica, segurança do trabalho) com catálogo público estilo Netflix, player com material lateral, prova, e emissão de certificado pago via Pix.
+Site institucional + plataforma de cursos online da **Ativa Engenharia** (climatização, elétrica, mecânica, civil e segurança do trabalho). Catálogo público estilo Netflix, player com material lateral, prova e emissão de certificado pago via Pix.
 
 Documentos de referência:
 
@@ -13,7 +13,7 @@ Documentos de referência:
 
 ## Stack resumida
 
-Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui · Prisma + PostgreSQL 16 · Auth.js v5 (F1+) · Biome · Vitest · Playwright. Detalhes em `SPEC.md §2`.
+Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui · Prisma + PostgreSQL 16 · Auth.js v5 · Biome · Vitest · Playwright. Detalhes em `SPEC.md §2`.
 
 ---
 
@@ -29,16 +29,18 @@ Pré-requisitos no host: Git, Docker, VS Code com a extensão **Dev Containers**
    code .
    ```
 
+   > Observação: o repositório no GitHub ainda se chama `Netflix-Cursos` por motivos históricos. O produto é **Ativa Engenharia**.
+
 2. No VS Code: `F1` → `Dev Containers: Reopen in Container`. O build levanta:
    - serviço `app` baseado em `mcr.microsoft.com/devcontainers/typescript-node:20` com pnpm e cloudflared;
-   - serviço `db` com Postgres 16 em `localhost:5432` (usuário `postgres`, senha `postgres`, banco `netflix_cursos`).
+   - serviço `db` com Postgres 16 em `localhost:5432` (usuário `postgres`, senha `postgres`, banco `ativa_engenharia`).
 
 3. Dentro do container:
 
    ```bash
    cp .env.example .env       # ajuste ADMIN_SEED_PASSWORD / AUTH_SECRET
-   pnpm db:migrate            # aplica a migration `init`
-   pnpm db:seed                # cria o admin (executa a partir de F1 quando argon2 estiver em uso real)
+   pnpm db:migrate            # aplica as migrations
+   pnpm db:seed               # cria o admin + curso de exemplo
    pnpm dev                   # http://localhost:3000
    ```
 
@@ -67,10 +69,10 @@ pnpm dev
 | `pnpm test` / `pnpm test:watch` | Vitest |
 | `pnpm test:e2e` / `pnpm test:e2e:ui` | Playwright |
 | `pnpm db:migrate` | `prisma migrate dev` |
-| `pnpm db:seed` | Cria o admin a partir de `ADMIN_SEED_EMAIL` / `ADMIN_SEED_PASSWORD` |
+| `pnpm db:seed` | Cria o admin + curso de exemplo |
 | `pnpm db:studio` | Abre Prisma Studio |
 | `pnpm db:reset` | Reseta o banco local |
-| `pnpm admin:reset-password` | Stub — implementação completa em F1 |
+| `pnpm admin:reset-password` | CLI interativa pra trocar a senha do admin |
 | `pnpm gates` | `typecheck && lint && test` (rodar antes de cada commit) |
 
 Detalhes de processo (branches, conventional commits, `task.md`) em `CLAUDE.md`.
@@ -79,4 +81,4 @@ Detalhes de processo (branches, conventional commits, `task.md`) em `CLAUDE.md`.
 
 ## Estado atual
 
-**F0 — Bootstrap.** Projeto de pé com scaffolding do Next 15, Biome, Vitest, Playwright, shadcn/ui (tema dark padrão), Prisma com `AdminUser`, dev container, CI e página placeholder em `/`. Próxima fase: **F1 — Auth + Shell do Admin** (ver `plan.md`).
+**F3.5 — Rebrand Ativa Engenharia + Landing Institucional.** Site institucional em light mode (`/`, `/servicos`, `/quem-somos`, `/faq`, `/contato`) + plataforma de cursos em dark mode (`/cursos`, `/cursos/[slug]`, `/cursos/[slug]/aulas/[id]`) + admin (`/admin/*`). Próxima fase: **F4 — Prova + Pix + Certificado** (ver `plan.md`).

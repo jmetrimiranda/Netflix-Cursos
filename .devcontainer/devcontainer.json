@@ -1,5 +1,5 @@
 {
-  "name": "Netflix-Cursos",
+  "name": "Ativa Engenharia",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/Netflix-Cursos",
