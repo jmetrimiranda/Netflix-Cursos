@@ -1,0 +1,38 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [develop, main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Faça review do PR contra critérios do SPEC.md, CLAUDE.md, plan.md e task.md (todos na raiz do repo).
+
+            Foco em:
+            1. Aderência ao escopo da fase declarada no título do PR (F<N>)
+            2. Segurança (auth guards, validação Zod, secrets nunca no client, CSRF/CORS)
+            3. Cobertura de testes nos caminhos críticos
+            4. Qualidade de código (zero `any` sem justificativa, Server Components default, sem console.log)
+            5. Decisões fora de SPEC/CLAUDE/PLAN: sinalizar e pedir documentação no task.md
+
+            Comente inline em linhas problemáticas. No final, poste um resumo:
+            - ✅ Aprovado pra merge OU 🐛 Mudanças solicitadas
+            - Lista de pontos críticos
+            - Lista de sugestões opcionais
+          claude_args: '--model claude-opus-4-5'
