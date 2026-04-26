@@ -36,7 +36,23 @@ export function ContactForm() {
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function fallbackToMailto(values: ContactFormData) {
+    const subject = `[Site Ativa] Contato de ${values.name}`;
+    const lines = [
+      `Nome: ${values.name}`,
+      `Email: ${values.email}`,
+      `Telefone: ${values.phone}`,
+      "",
+      "Mensagem:",
+      values.message,
+    ];
+    const href = `mailto:${contact.email}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(lines.join("\n"))}`;
+    window.location.href = href;
+  }
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = contactSchema.safeParse(data);
     if (!parsed.success) {
@@ -57,22 +73,41 @@ export function ContactForm() {
     setSubmitting(true);
     setErrors({});
 
-    const subject = `[Site Ativa] Contato de ${parsed.data.name}`;
-    const lines = [
-      `Nome: ${parsed.data.name}`,
-      `Email: ${parsed.data.email}`,
-      `Telefone: ${parsed.data.phone}`,
-      "",
-      "Mensagem:",
-      parsed.data.message,
-    ];
-    const href = `mailto:${contact.email}?subject=${encodeURIComponent(
-      subject,
-    )}&body=${encodeURIComponent(lines.join("\n"))}`;
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...parsed.data, lgpdConsent: true }),
+      });
 
-    toast.success("Abrindo seu cliente de email...");
-    window.location.href = href;
-    setSubmitting(false);
+      if (res.status === 429) {
+        toast.error("Muitas mensagens em pouco tempo. Aguarde alguns minutos.");
+        setErrors({ form: "Limite de envio atingido — tente em alguns minutos." });
+        return;
+      }
+
+      if (res.status === 503) {
+        toast.message("Vamos abrir seu cliente de email — backend indisponível no momento.");
+        fallbackToMailto(parsed.data);
+        return;
+      }
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(body.error ?? "Não foi possível enviar a mensagem.");
+        setErrors({ form: body.error ?? "Erro ao enviar" });
+        return;
+      }
+
+      toast.success("Mensagem enviada! Responderemos no horário comercial.");
+      setData(empty);
+      setLgpd(false);
+    } catch {
+      toast.message("Vamos abrir seu cliente de email — falha de rede.");
+      fallbackToMailto(parsed.data);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
