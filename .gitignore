@@ -4,6 +4,9 @@
 SETUP.md
 prompt_yolo_*.md
 
+# Claude Code runtime artifacts
+.claude/
+
 # dependencies
 /node_modules
 /.pnp
