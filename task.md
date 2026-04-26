@@ -368,3 +368,8 @@
 - **Branch protection no GitHub** continua pendente (vide entradas anteriores). Não bloqueia F4.
 - **Playwright system deps**: `pnpm exec playwright install-deps chromium` (com sudo) foi rodado no dev container desta sessão pra que o Playwright pudesse subir o Chromium. Se o dev container for recriado, será preciso rodar de novo. Considerar adicionar ao `Dockerfile` do devcontainer em F5.
 - **`pdfUrl=""`/`null` no Certificate**: schema agora é nullable (migration C6). Banco antigo de F2/F3 não tinha registros `Certificate`, então não precisa backfill.
+
+---
+## 2026-04-26 — develop — F4 validada manualmente + mergeada
+
+F4 (paywall + prova + certificado) foi validada manualmente no dev container e mergeada em `develop` (squash commit `5c4b8eb`, PR #8). Reset do enrollment do dev via `prisma db execute` (DELETE em `Certificate`/`ExamAttempt`/`Payment`/`LessonView`/`Enrollment` filtrando por `studentEmail`). Fluxo completo testado: tela "Comprar acesso" → form de checkout (email/nome/CPF/LGPD) → `POST /api/checkout/create` retornou Pix do AbacatePay v2 sandbox → tela do Pix com QR base64 + brCode + contador 30min → simulação de pagamento via `POST /v1/pixQrCode/simulate-payment?id=<pix_char_*>` (devMode, taxa R$ 0,80) → polling 3s detectou `PAID` via `gateway.getStatus()` (fallback do webhook, esperado em dev local sem URL HTTPS) → toast "Pagamento confirmado!" + redirect pra primeira aula em 1.5s → `<LessonView/>` renderizou (placeholder de vídeo Bunny esperado, sem credenciais). Email AbacatePay devMode "Você recebeu um pagamento de R$ 99,00" recebido — confirma que o gateway tá conectado de verdade na sandbox. CI verde nos 3 checks (typecheck + lint + test). Branch `feature/paywall-prova-cert` deletada local e remoto.
