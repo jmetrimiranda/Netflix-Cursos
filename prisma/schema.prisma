@@ -23,6 +23,12 @@ enum PaymentStatus {
   expired
 }
 
+enum EnrollmentStatus {
+  pending_payment
+  active
+  cancelled
+}
+
 model AdminUser {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -40,7 +46,7 @@ model Course {
   priceCents         Int
   workloadHours      Int
   examQuestionsCount Int            @default(10)
-  examPassScore      Float          @default(7.0)
+  examPassScore      Float          @default(6.0)
   published          Boolean        @default(false)
   featured           Boolean        @default(false)
   createdAt          DateTime       @default(now())
@@ -110,10 +116,11 @@ model Question {
 }
 
 model Enrollment {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   studentEmail String
   courseId     String
-  startedAt    DateTime @default(now())
+  status       EnrollmentStatus @default(pending_payment)
+  startedAt    DateTime         @default(now())
 
   course       Course        @relation(fields: [courseId], references: [id])
   examAttempts ExamAttempt[]
@@ -142,6 +149,9 @@ model ExamAttempt {
 model Payment {
   id            String        @id @default(cuid())
   enrollmentId  String        @unique
+  /// Stores the gateway payment ID. Provider depends on PAYMENT_PROVIDER env var (ADR-013).
+  /// Despite the legacy "mp" prefix (Mercado Pago era), this stores AbacatePay IDs by default
+  /// (format: "pix_char_xxxxxxxxxxxxxxxx"). Renomear seria churn sem ganho.
   mpPaymentId   String        @unique
   amountCents   Int
   status        PaymentStatus @default(pending)
@@ -162,7 +172,7 @@ model Certificate {
   id               String   @id @default(cuid())
   enrollmentId     String   @unique
   verificationCode String   @unique
-  pdfUrl           String
+  pdfUrl           String?
   studentName      String
   studentCpf       String
   courseTitle      String

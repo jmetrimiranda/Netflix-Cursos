@@ -16,42 +16,30 @@ export async function GET(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
   }
-
   const { courseId, studentEmail } = parsed.data;
 
   const enrollment = await db.enrollment.findUnique({
     where: { studentEmail_courseId: { studentEmail, courseId } },
-    select: { id: true, status: true },
+    select: {
+      certificate: {
+        select: {
+          verificationCode: true,
+          pdfUrl: true,
+          studentName: true,
+          courseTitle: true,
+          workloadHours: true,
+          issuedAt: true,
+        },
+      },
+    },
   });
-
-  if (!enrollment) {
-    return NextResponse.json({ enrollmentId: null, status: null, views: [] });
+  if (!enrollment?.certificate) {
+    return NextResponse.json({ certificate: null });
   }
-
-  if (enrollment.status !== "active") {
-    return NextResponse.json({
-      enrollmentId: enrollment.id,
-      status: enrollment.status,
-      views: [],
-    });
-  }
-
-  const lessons = await db.lesson.findMany({
-    where: { module: { courseId } },
-    select: { id: true },
-  });
-  const lessonIds = lessons.map((l) => l.id);
-
-  const views = lessonIds.length
-    ? await db.lessonView.findMany({
-        where: { studentEmail, lessonId: { in: lessonIds } },
-        select: { lessonId: true, progressPct: true, completed: true },
-      })
-    : [];
-
   return NextResponse.json({
-    enrollmentId: enrollment.id,
-    status: enrollment.status,
-    views,
+    certificate: {
+      ...enrollment.certificate,
+      issuedAt: enrollment.certificate.issuedAt.toISOString(),
+    },
   });
 }

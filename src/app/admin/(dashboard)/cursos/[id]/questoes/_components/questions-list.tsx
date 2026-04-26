@@ -52,7 +52,7 @@ export function QuestionsList({ courseId, questions }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {questions.length} questão{questions.length === 1 ? "" : "s"} no banco
+          {questions.length} {questions.length === 1 ? "questão" : "questões"} no banco
           {questions.length > 0 ? ` · ${questions.filter((q) => q.active).length} ativa(s)` : ""}
         </p>
         {creating ? null : (

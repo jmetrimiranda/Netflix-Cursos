@@ -1,6 +1,5 @@
 "use client";
 
-import { EmailCaptureModal } from "@/components/public/email-capture-modal";
 import { LessonPlayer } from "@/components/public/lesson-player";
 import { ProgressTracker } from "@/components/public/progress-tracker";
 import { TiptapRenderer } from "@/components/public/tiptap-renderer";
@@ -58,22 +57,15 @@ export function LessonView({
   nextLessonId,
   siblingLessons,
 }: Props) {
-  const [studentEmail, setStudentEmail] = useState<string | null>(null);
   const [enrollment, setEnrollment] = useState<EnrollmentState | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
-    const stored = readStudentEmail();
-    setStudentEmail(stored);
-    if (!stored) {
+    const studentEmail = readStudentEmail();
+    if (!studentEmail) {
       setBootstrapped(true);
-      setModalOpen(true);
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    if (!studentEmail) return;
     let cancelled = false;
     fetch(
       `/api/enrollment/state?courseId=${encodeURIComponent(courseId)}&studentEmail=${encodeURIComponent(studentEmail)}`,
@@ -82,31 +74,16 @@ export function LessonView({
       .then(
         (data: {
           enrollmentId: string | null;
+          status: "pending_payment" | "active" | "cancelled" | null;
           views: Array<{ lessonId: string; progressPct: number; completed: boolean }>;
         }) => {
           if (cancelled) return;
+          if (!data.enrollmentId || data.status !== "active") return;
           const byLesson = new Map<string, LessonState>();
           for (const v of data.views) {
             byLesson.set(v.lessonId, { progressPct: v.progressPct, completed: v.completed });
           }
-          if (data.enrollmentId) {
-            setEnrollment({ enrollmentId: data.enrollmentId, byLesson });
-          } else {
-            // Email salvo mas sem enrollment — registra agora.
-            void fetch("/api/enrollment", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ courseId, studentEmail }),
-            })
-              .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-              .then((res: { enrollmentId: string }) => {
-                if (cancelled) return;
-                setEnrollment({ enrollmentId: res.enrollmentId, byLesson });
-              })
-              .catch(() => {
-                /* will retry on reload */
-              });
-          }
+          setEnrollment({ enrollmentId: data.enrollmentId, byLesson });
         },
       )
       .catch(() => {
@@ -118,7 +95,7 @@ export function LessonView({
     return () => {
       cancelled = true;
     };
-  }, [courseId, studentEmail]);
+  }, [courseId]);
 
   const lessonState = enrollment?.byLesson.get(lesson.id) ?? null;
   const optimisticPct = lessonState?.progressPct ?? 0;
@@ -287,21 +264,6 @@ export function LessonView({
           onProgressUpdate={applyProgressUpdate}
         />
       )}
-
-      <EmailCaptureModal
-        open={modalOpen}
-        onOpenChange={(open) => {
-          setModalOpen(open);
-          if (!open && !studentEmail) {
-            // Aluno fechou modal sem confirmar → manter player visível mas sem tracker.
-          }
-        }}
-        courseId={courseId}
-        onConfirmed={({ studentEmail: email, enrollmentId }) => {
-          setStudentEmail(email);
-          setEnrollment({ enrollmentId, byLesson: new Map() });
-        }}
-      />
 
       {!bootstrapped && (
         <p className="sr-only" aria-live="polite">

@@ -74,8 +74,7 @@ export default async function CursosPage({ searchParams }: CursosPageProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Catálogo</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Catálogo de cursos</h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Capacitação técnica em engenharia. Estude no seu ritmo, faça a prova com tentativas
-            ilimitadas e pague o certificado via Pix.
+            Capacitação técnica em engenharia. Acesso vitalício e certificado, pagos via Pix.
           </p>
 
           {/* Filtros */}
