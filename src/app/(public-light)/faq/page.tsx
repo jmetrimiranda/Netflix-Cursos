@@ -1,13 +1,14 @@
 import { FaqAccordion } from "@/components/public/faq-accordion";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 import { faq } from "@/content/faq";
-import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Perguntas frequentes — Ativa Engenharia",
+export const metadata = buildMetadata({
+  title: "Perguntas frequentes",
   description:
     "Tire dúvidas sobre matrícula em cursos, certificado, formas de pagamento, atendimento e responsáveis técnicos da Ativa Engenharia.",
-};
+  path: "/faq",
+});
 
 export default function FaqPage() {
   return (

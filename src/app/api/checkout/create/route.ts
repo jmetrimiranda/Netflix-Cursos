@@ -1,12 +1,19 @@
 import { stripCpfMask } from "@/lib/cpf";
 import { db } from "@/lib/db";
 import { GatewayNotConfiguredError, getPaymentGateway } from "@/lib/payments";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { checkoutCreateSchema } from "@/lib/validations/checkout";
 import { NextResponse } from "next/server";
 
 const PIX_TTL_SECONDS = 30 * 60;
 
 export async function POST(request: Request) {
+  const limited = rateLimitResponse(request, "checkout:create", {
+    max: 5,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();

@@ -5,17 +5,18 @@ import { about } from "@/content/about";
 import { seals } from "@/content/seals";
 import { categoryLabel } from "@/lib/categories";
 import { db } from "@/lib/db";
+import { buildMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { ArrowRight, Award, ShieldCheck, Sparkles, Wrench } from "lucide-react";
-import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata = buildMetadata({
   title: "Ativa Engenharia — Soluções integradas em engenharia",
   description:
     "Engenharia de climatização, elétrica, mecânica, civil e segurança do trabalho. Cursos online com certificado. Atendimento via WhatsApp 27 99818-3686.",
-};
+  path: "/",
+});
 
 const heroSlides = [
   {
@@ -156,7 +157,6 @@ export default async function HomePage() {
                   >
                     <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted">
                       {course.thumbnailUrl ? (
-                        // biome-ignore lint/a11y/useAltText: decorative; title below
                         <img
                           src={course.thumbnailUrl}
                           alt=""

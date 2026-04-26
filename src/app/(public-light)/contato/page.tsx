@@ -1,14 +1,15 @@
 import { ContactForm } from "@/components/public/contact-form";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 import { contact } from "@/content/contact";
+import { buildMetadata } from "@/lib/seo";
 import { AtSign, Globe, Mail, MapPin } from "lucide-react";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Contato — Ativa Engenharia",
+export const metadata = buildMetadata({
+  title: "Contato",
   description:
     "Solicite um orçamento, tire dúvidas ou fale conosco pelo WhatsApp 27 99818-3686, email ativaengmec@gmail.com ou Instagram @ativaeng.",
-};
+  path: "/contato",
+});
 
 export default function ContatoPage() {
   return (
@@ -20,8 +21,8 @@ export default function ContatoPage() {
             Vamos conversar sobre o seu projeto?
           </h1>
           <p className="mt-4 max-w-2xl text-base text-muted-foreground sm:text-lg">
-            A forma mais rápida de obter resposta é pelo WhatsApp. Você também pode usar o
-            formulário abaixo — ele abre o seu cliente de email com a mensagem pronta.
+            A forma mais rápida de obter resposta é pelo WhatsApp. Você também pode enviar uma
+            mensagem pelo formulário abaixo — recebemos por email.
           </p>
         </div>
       </section>
@@ -43,7 +44,7 @@ export default function ContatoPage() {
             <div className="rounded-lg border border-border bg-card p-6 shadow-sm sm:p-8">
               <h2 className="text-lg font-semibold">Envie uma mensagem</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Preenchemos um email com seus dados — basta confirmar no seu cliente de email.
+                Recebemos sua mensagem por email e respondemos no horário comercial.
               </p>
               <div className="mt-6">
                 <ContactForm />

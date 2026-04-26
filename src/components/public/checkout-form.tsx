@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { maskCpf, validateCpf } from "@/lib/cpf";
 import { writeStudentEmail } from "@/lib/student-email";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -167,8 +168,17 @@ export function CheckoutForm({ courseId, slug }: Props) {
             className="mt-0.5"
           />
           <span>
-            Li e concordo com a Política de Privacidade. Autorizo o uso dos meus dados conforme a
-            LGPD para emissão do certificado e contato relacionado ao curso.
+            Li e concordo com a{" "}
+            <Link
+              href="/privacidade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              Política de Privacidade
+            </Link>
+            . Autorizo o uso dos meus dados conforme a LGPD para emissão do certificado e contato
+            relacionado ao curso.
           </span>
         </label>
         {errors.lgpd && (

@@ -1,15 +1,16 @@
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 import { Button } from "@/components/ui/button";
 import { serviceGroups } from "@/content/services";
+import { buildMetadata } from "@/lib/seo";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "Serviços — Ativa Engenharia",
+export const metadata = buildMetadata({
+  title: "Serviços",
   description:
     "Climatização (PMOC), elétrica (SPDA, solar), mecânica (NR-12, NR-13), civil, hidráulica, combate a incêndio, segurança do trabalho (PCMSO, PGR, LTCAT) e mais.",
-};
+  path: "/servicos",
+});
 
 export default function ServicosPage() {
   return (

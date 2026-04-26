@@ -1,11 +1,27 @@
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
+import { buildMetadata } from "@/lib/seo";
 import { VERIFICATION_CODE_REGEX } from "@/lib/verification-code";
 import { CheckCircle2Icon, FileDownIcon, XCircleIcon } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 type RouteParams = { codigo: string };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<RouteParams>;
+}): Promise<Metadata> {
+  const { codigo } = await params;
+  return buildMetadata({
+    title: `Verificação de certificado ${codigo}`,
+    description:
+      "Verificação pública de certificados emitidos pela Ativa Engenharia. Confirme autenticidade pelo código de verificação.",
+    path: `/verificar/${codigo}`,
+  });
+}
 
 function maskCpfDigits(d: string): string {
   const digits = d.replace(/\D/g, "");

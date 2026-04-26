@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -17,13 +18,15 @@ const contactSchema = z.object({
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
-type ContactFormErrors = Partial<Record<keyof ContactFormData, string>>;
+type ContactFormErrors = Partial<Record<keyof ContactFormData | "lgpd" | "form", string>>;
 
 const empty: ContactFormData = { name: "", email: "", phone: "", message: "" };
 
 export function ContactForm() {
   const [data, setData] = useState<ContactFormData>(empty);
+  const [lgpd, setLgpd] = useState(false);
   const [errors, setErrors] = useState<ContactFormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
 
   function update<K extends keyof ContactFormData>(
     key: K,
@@ -33,7 +36,23 @@ export function ContactForm() {
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function fallbackToMailto(values: ContactFormData) {
+    const subject = `[Site Ativa] Contato de ${values.name}`;
+    const lines = [
+      `Nome: ${values.name}`,
+      `Email: ${values.email}`,
+      `Telefone: ${values.phone}`,
+      "",
+      "Mensagem:",
+      values.message,
+    ];
+    const href = `mailto:${contact.email}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(lines.join("\n"))}`;
+    window.location.href = href;
+  }
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsed = contactSchema.safeParse(data);
     if (!parsed.success) {
@@ -46,21 +65,49 @@ export function ContactForm() {
       return;
     }
 
-    const subject = `[Site Ativa] Contato de ${parsed.data.name}`;
-    const lines = [
-      `Nome: ${parsed.data.name}`,
-      `Email: ${parsed.data.email}`,
-      `Telefone: ${parsed.data.phone}`,
-      "",
-      "Mensagem:",
-      parsed.data.message,
-    ];
-    const href = `mailto:${contact.email}?subject=${encodeURIComponent(
-      subject,
-    )}&body=${encodeURIComponent(lines.join("\n"))}`;
+    if (!lgpd) {
+      setErrors({ lgpd: "É necessário aceitar para continuar" });
+      return;
+    }
 
-    toast.success("Abrindo seu cliente de email...");
-    window.location.href = href;
+    setSubmitting(true);
+    setErrors({});
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...parsed.data, lgpdConsent: true }),
+      });
+
+      if (res.status === 429) {
+        toast.error("Muitas mensagens em pouco tempo. Aguarde alguns minutos.");
+        setErrors({ form: "Limite de envio atingido — tente em alguns minutos." });
+        return;
+      }
+
+      if (res.status === 503) {
+        toast.message("Vamos abrir seu cliente de email — backend indisponível no momento.");
+        fallbackToMailto(parsed.data);
+        return;
+      }
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(body.error ?? "Não foi possível enviar a mensagem.");
+        setErrors({ form: body.error ?? "Erro ao enviar" });
+        return;
+      }
+
+      toast.success("Mensagem enviada! Responderemos no horário comercial.");
+      setData(empty);
+      setLgpd(false);
+    } catch {
+      toast.message("Vamos abrir seu cliente de email — falha de rede.");
+      fallbackToMailto(parsed.data);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -129,8 +176,43 @@ export function ContactForm() {
         )}
       </div>
 
-      <Button type="submit" size="lg" className="w-full sm:w-auto">
-        Enviar mensagem
+      <div className="space-y-1">
+        <label className="flex items-start gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={lgpd}
+            onChange={(e) => {
+              setLgpd(e.target.checked);
+              if (errors.lgpd) setErrors((p) => ({ ...p, lgpd: undefined }));
+            }}
+            aria-invalid={Boolean(errors.lgpd)}
+            aria-describedby={errors.lgpd ? "contact-lgpd-error" : undefined}
+            className="mt-0.5"
+          />
+          <span>
+            Li e concordo com a{" "}
+            <Link
+              href="/privacidade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-2"
+            >
+              Política de Privacidade
+            </Link>
+            . Autorizo o uso dos meus dados para retorno desta solicitação.
+          </span>
+        </label>
+        {errors.lgpd && (
+          <p id="contact-lgpd-error" className="text-xs text-destructive">
+            {errors.lgpd}
+          </p>
+        )}
+      </div>
+
+      {errors.form && <p className="text-sm text-destructive">{errors.form}</p>}
+
+      <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={submitting}>
+        {submitting ? "Enviando..." : "Enviar mensagem"}
       </Button>
     </form>
   );

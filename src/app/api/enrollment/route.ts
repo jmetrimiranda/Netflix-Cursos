@@ -1,8 +1,15 @@
 import { db } from "@/lib/db";
+import { rateLimitResponse } from "@/lib/rate-limit";
 import { enrollmentInputSchema } from "@/lib/validations/enrollment";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
+  const limited = rateLimitResponse(request, "enrollment", {
+    max: 10,
+    windowMs: 60_000,
+  });
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();
