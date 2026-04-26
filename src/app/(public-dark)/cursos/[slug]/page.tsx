@@ -2,9 +2,43 @@ import { CourseDetailGate, type ModuleItem } from "@/components/public/course-de
 import { categoryLabel } from "@/lib/categories";
 import { db } from "@/lib/db";
 import { formatCentsToBRL } from "@/lib/money";
+import { buildMetadata } from "@/lib/seo";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 type RouteParams = { slug: string };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<RouteParams>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const course = await db.course.findUnique({
+    where: { slug },
+    select: { title: true, description: true, published: true, thumbnailUrl: true },
+  });
+
+  if (!course || !course.published) {
+    return buildMetadata({
+      title: "Curso não encontrado",
+      description: "O curso solicitado não está disponível.",
+      path: `/cursos/${slug}`,
+    });
+  }
+
+  const description = course.description.slice(0, 160).replace(/\s+/g, " ").trim();
+  const ogImages = course.thumbnailUrl
+    ? [{ url: course.thumbnailUrl, width: 1200, height: 630, alt: course.title }]
+    : undefined;
+
+  return buildMetadata({
+    title: course.title,
+    description,
+    path: `/cursos/${slug}`,
+    ogImages,
+  });
+}
 
 export default async function CoursePage({ params }: { params: Promise<RouteParams> }) {
   const { slug } = await params;

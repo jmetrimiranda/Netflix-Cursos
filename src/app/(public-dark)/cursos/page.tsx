@@ -2,16 +2,17 @@ import type { CourseCardData } from "@/components/public/course-card";
 import { CourseRow } from "@/components/public/course-row";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/categories";
 import { db } from "@/lib/db";
+import { buildMetadata } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import type { CourseCategory } from "@prisma/client";
-import type { Metadata } from "next";
 import Link from "next/link";
 
-export const metadata: Metadata = {
-  title: "Catálogo de cursos — Ativa Engenharia",
+export const metadata = buildMetadata({
+  title: "Catálogo de cursos",
   description:
     "Cursos online de engenharia civil, mecânica e segurança do trabalho. Certificado vitalício pago via Pix.",
-};
+  path: "/cursos",
+});
 
 const FILTERS: { key: "todas" | CourseCategory; label: string }[] = [
   { key: "todas", label: "Todas" },

@@ -1,13 +1,14 @@
 import { about } from "@/content/about";
 import { team } from "@/content/team";
-import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import Image from "next/image";
 
-export const metadata: Metadata = {
-  title: "Quem somos — Ativa Engenharia",
+export const metadata = buildMetadata({
+  title: "Quem somos",
   description:
     "Empresa de engenharia atuante no Espírito Santo com responsáveis técnicos credenciados pelo CREA. Missão, visão preventiva e responsabilidade ambiental.",
-};
+  path: "/quem-somos",
+});
 
 export default function QuemSomosPage() {
   return (

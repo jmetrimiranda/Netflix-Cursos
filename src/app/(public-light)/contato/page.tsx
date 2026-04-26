@@ -1,14 +1,15 @@
 import { ContactForm } from "@/components/public/contact-form";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 import { contact } from "@/content/contact";
+import { buildMetadata } from "@/lib/seo";
 import { AtSign, Globe, Mail, MapPin } from "lucide-react";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Contato — Ativa Engenharia",
+export const metadata = buildMetadata({
+  title: "Contato",
   description:
     "Solicite um orçamento, tire dúvidas ou fale conosco pelo WhatsApp 27 99818-3686, email ativaengmec@gmail.com ou Instagram @ativaeng.",
-};
+  path: "/contato",
+});
 
 export default function ContatoPage() {
   return (
