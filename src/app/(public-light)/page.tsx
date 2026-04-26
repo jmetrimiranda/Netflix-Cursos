@@ -157,7 +157,6 @@ export default async function HomePage() {
                   >
                     <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted">
                       {course.thumbnailUrl ? (
-                        // biome-ignore lint/a11y/useAltText: decorative; title below
                         <img
                           src={course.thumbnailUrl}
                           alt=""

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -17,13 +18,15 @@ const contactSchema = z.object({
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
-type ContactFormErrors = Partial<Record<keyof ContactFormData, string>>;
+type ContactFormErrors = Partial<Record<keyof ContactFormData | "lgpd" | "form", string>>;
 
 const empty: ContactFormData = { name: "", email: "", phone: "", message: "" };
 
 export function ContactForm() {
   const [data, setData] = useState<ContactFormData>(empty);
+  const [lgpd, setLgpd] = useState(false);
   const [errors, setErrors] = useState<ContactFormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
 
   function update<K extends keyof ContactFormData>(
     key: K,
@@ -46,6 +49,14 @@ export function ContactForm() {
       return;
     }
 
+    if (!lgpd) {
+      setErrors({ lgpd: "É necessário aceitar para continuar" });
+      return;
+    }
+
+    setSubmitting(true);
+    setErrors({});
+
     const subject = `[Site Ativa] Contato de ${parsed.data.name}`;
     const lines = [
       `Nome: ${parsed.data.name}`,
@@ -61,6 +72,7 @@ export function ContactForm() {
 
     toast.success("Abrindo seu cliente de email...");
     window.location.href = href;
+    setSubmitting(false);
   }
 
   return (
@@ -129,8 +141,43 @@ export function ContactForm() {
         )}
       </div>
 
-      <Button type="submit" size="lg" className="w-full sm:w-auto">
-        Enviar mensagem
+      <div className="space-y-1">
+        <label className="flex items-start gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={lgpd}
+            onChange={(e) => {
+              setLgpd(e.target.checked);
+              if (errors.lgpd) setErrors((p) => ({ ...p, lgpd: undefined }));
+            }}
+            aria-invalid={Boolean(errors.lgpd)}
+            aria-describedby={errors.lgpd ? "contact-lgpd-error" : undefined}
+            className="mt-0.5"
+          />
+          <span>
+            Li e concordo com a{" "}
+            <Link
+              href="/privacidade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline-offset-2 hover:underline"
+            >
+              Política de Privacidade
+            </Link>
+            . Autorizo o uso dos meus dados para retorno desta solicitação.
+          </span>
+        </label>
+        {errors.lgpd && (
+          <p id="contact-lgpd-error" className="text-xs text-destructive">
+            {errors.lgpd}
+          </p>
+        )}
+      </div>
+
+      {errors.form && <p className="text-sm text-destructive">{errors.form}</p>}
+
+      <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={submitting}>
+        {submitting ? "Enviando..." : "Enviar mensagem"}
       </Button>
     </form>
   );

@@ -190,16 +190,15 @@ export function PublicFooter({ variant = "light" }: PublicFooterProps) {
             © {new Date().getFullYear()} Ativa Engenharia. Todos os direitos
             reservados.
           </p>
-          <a
-            href="#"
-            aria-label="Política de privacidade (em breve)"
+          <Link
+            href="/privacidade"
             className={cn(
               "transition-colors",
               isDark ? "hover:text-white" : "hover:text-foreground",
             )}
           >
-            Privacidade
-          </a>
+            Política de Privacidade
+          </Link>
         </div>
       </div>
     </footer>
