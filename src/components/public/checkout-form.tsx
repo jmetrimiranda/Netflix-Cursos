@@ -173,7 +173,7 @@ export function CheckoutForm({ courseId, slug }: Props) {
               href="/privacidade"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary underline-offset-2 hover:underline"
+              className="text-primary underline underline-offset-2"
             >
               Política de Privacidade
             </Link>
