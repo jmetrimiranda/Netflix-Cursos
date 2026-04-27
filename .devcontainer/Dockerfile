@@ -18,6 +18,9 @@ RUN curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
 # Playwright Chromium + system deps. Runs via npx para evitar dependência da instalação local
 # do projeto (que ainda não existe no momento do build da imagem). Cache pra /ms-playwright.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN npx --yes playwright@1.50.0 install-deps chromium \
- && npx --yes playwright@1.50.0 install chromium \
- && rm -rf /var/lib/apt/lists/*
+# TODO: Playwright deps disabled — Trixie quebra com versão 1.50.0 hardcoded (F5 bug).
+# Voltar quando bumpar Playwright >= 1.55 ou trocar pra ler versão do package.json.
+# Workaround: rodar `sudo pnpm exec playwright install-deps chromium` manualmente quando precisar.
+# RUN npx --yes playwright@1.50.0 install-deps chromium \
+#  && npx --yes playwright@1.50.0 install chromium \
+#  && rm -rf /var/lib/apt/lists/*
