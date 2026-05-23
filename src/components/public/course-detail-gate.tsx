@@ -124,6 +124,11 @@ export function CourseDetailGate({ courseId, courseSlug, modules }: Props) {
               <Button size="lg">{primaryCta.label}</Button>
             </Link>
           )}
+          <Link href={`/cursos/${courseSlug}/entrar`}>
+            <Button size="lg" variant="outline">
+              Já comprei? Entrar
+            </Button>
+          </Link>
           {status === "active" && (
             <Link
               href={
