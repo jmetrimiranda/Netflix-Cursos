@@ -38,9 +38,7 @@ export function LessonForm({ mode, moduleId, lessonId, defaults, onSaved }: Prop
   const hasLegacyBunny = Boolean(defaults?.bunnyVideoId);
 
   const videoState = useMemo<
-    | { kind: "empty" }
-    | { kind: "valid"; id: string }
-    | { kind: "invalid" }
+    { kind: "empty" } | { kind: "valid"; id: string } | { kind: "invalid" }
   >(() => {
     if (!videoSource.trim()) return { kind: "empty" };
     const id = extractYoutubeId(videoSource);

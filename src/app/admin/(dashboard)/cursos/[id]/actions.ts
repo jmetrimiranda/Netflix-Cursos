@@ -114,8 +114,7 @@ export async function createLessonAction(moduleId: string, fd: FormData): Promis
   await requireAdmin();
   const raw = {
     title: typeof fd.get("title") === "string" ? fd.get("title") : "",
-    videoSource:
-      typeof fd.get("videoSource") === "string" ? (fd.get("videoSource") as string) : "",
+    videoSource: typeof fd.get("videoSource") === "string" ? (fd.get("videoSource") as string) : "",
     sidebarContentJson:
       typeof fd.get("sidebarContentJson") === "string"
         ? (fd.get("sidebarContentJson") as string)
@@ -171,8 +170,7 @@ export async function updateLessonAction(lessonId: string, fd: FormData): Promis
   await requireAdmin();
   const raw = {
     title: typeof fd.get("title") === "string" ? fd.get("title") : "",
-    videoSource:
-      typeof fd.get("videoSource") === "string" ? (fd.get("videoSource") as string) : "",
+    videoSource: typeof fd.get("videoSource") === "string" ? (fd.get("videoSource") as string) : "",
     sidebarContentJson:
       typeof fd.get("sidebarContentJson") === "string"
         ? (fd.get("sidebarContentJson") as string)
