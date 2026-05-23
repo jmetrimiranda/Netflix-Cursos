@@ -43,6 +43,7 @@ export default async function LessonPage({ params }: { params: Promise<RoutePara
       lesson={{
         id: lesson.id,
         title: lesson.title,
+        youtubeVideoId: lesson.youtubeVideoId,
         bunnyVideoId: lesson.bunnyVideoId,
         bunnyLibraryId: lesson.bunnyLibraryId,
         durationSeconds: lesson.durationSeconds,
