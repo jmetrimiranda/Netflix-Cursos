@@ -91,9 +91,7 @@ test.describe("F6 — /cursos/[slug]/entrar (recover)", () => {
       timeout: 15_000,
     });
 
-    const stored = await page.evaluate(() =>
-      window.localStorage.getItem("ativa_engenharia_email"),
-    );
+    const stored = await page.evaluate(() => window.localStorage.getItem("ativa_engenharia_email"));
     expect(stored).toBe(testEmail);
   });
 
@@ -109,9 +107,7 @@ test.describe("F6 — /cursos/[slug]/entrar (recover)", () => {
 
   test("email inexistente mostra mesma mensagem genérica", async ({ page }) => {
     await page.goto(`/cursos/${SEED_COURSE_SLUG}/entrar`);
-    await page
-      .getByLabel("Email")
-      .fill(`nao-existe-${Date.now().toString(36)}@example.com`);
+    await page.getByLabel("Email").fill(`nao-existe-${Date.now().toString(36)}@example.com`);
     await page.getByLabel("CPF").fill(VALID_CPF_MASKED);
     await page.getByRole("button", { name: /Entrar no meu curso/i }).click();
 
