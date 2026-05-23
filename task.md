@@ -460,3 +460,58 @@ F5 (Polish) entregue via Claude Code em sessão YOLO de ~56min, mergeada em `dev
 **1. Dependências externas (não-código) — agora.** KYC AbacatePay com CNPJ 29.974.056/0001-29 → troca `abc_dev_*` por `abc_prod_*`. DNS de `ativaengenharia.net` no Resend (DKIM/SPF/DMARC). Credenciais Bunny Stream pra upload real de vídeos. Branch protection no GitHub (Settings → Branches → Add rule, exigir PR + checks passing).
 
 **2. Deploy de staging — após dependências resolvidas.** Vercel Hobby (grátis) + Neon Free tier (grátis). README de deploy já tem o passo a passo (vide commit `aa88b57` da F5). Modelo: `develop` → preview deploy automático; `main` → produção. `AUTH_SECRET` novo gerado pra prod via `pnpm dlx auth secret`. Webhook AbacatePay configurado apontando pra `https://<vercel-url>/api/payments/webhook` com `ABACATEPAY_WEBHOOK_SECRET` populado. Cliente vê staging real e dá feedback antes de promover pra prod.
+
+---
+## 2026-05-23 17:55 — feature/aluno-entrar — F6 botão "Já comprei? Entrar"
+
+**Fase:** F6
+**PR:** em andamento (branch `feature/aluno-entrar` @ f54871c)
+
+### O que foi feito
+- Validação Zod do body de `/api/enrollment/recover` em `src/lib/validations/enrollment-recover.ts`, reaproveitando `validateCpf` do helper existente.
+- Lógica pura de recovery em `src/lib/enrollment-recover.ts` com deps injetadas (`findCourseWithFirstLesson`, `findEnrollmentByCourseAndEmail`) — fácil de mockar no Vitest sem hit no Postgres. Retorna resultado discriminado: `course_not_found` | `not_found` | `not_active` | `cpf_mismatch` | `ok+redirectTo`.
+- Route handler `POST /api/enrollment/recover` (5 reqs/min/IP via `rateLimitResponse`, mesmo padrão do ADR-014). Lookup case-insensitive de email via `mode: "insensitive"`. Logging `[enrollment-recover] reason=<x> course=<slug>` sem PII. Retorna 400/404/429 quando aplicável, ou 200 com `{ ok, ... }`.
+- Form de recovery em `src/components/public/recover-access-form.tsx` (shadcn `Form` + `react-hook-form` + `zodResolver`, mesmo padrão do `admin/login/login-form.tsx`). Máscara CPF on-the-fly via `maskCpf`. Sucesso → `writeStudentEmail(email)` + `router.push(redirectTo)` + toast. Qualquer falha do backend (com ou sem reason) → mensagem genérica única + CTA "Comprar curso" inline.
+- Página `/cursos/[slug]/entrar` (Server Component dentro do route group `(public-dark)`) que valida o slug, retorna 404 se curso não existe/não publicado, e renderiza o form com link "Voltar para o curso" + "Ainda não comprou? Ver opções de compra".
+- Segundo CTA `[Já comprei? Entrar]` (variant `outline`) sempre visível em `course-detail-gate.tsx`, lado a lado com o primário em todos os estados (`null`, `pending_payment`, `active`). Decisão consciente: mantemos `[Continuar curso]` + `[Já comprei? Entrar]` juntos quando ativo, porque cobre o caso "estou nesse navegador sem localStorage mas é meu acesso" — sem custo UX significativo (botão é discreto e o nome deixa claro).
+- 14 testes Vitest novos cobrindo a lógica pura + schema Zod (mask vs digits, case-insensitive email, course sem aulas, todos os reasons).
+- 5 testes Playwright (1 navegação CTA, 1 happy path com verificação de localStorage, 2 mensagem genérica em failure paths distintos, 1 rate-limit via `request` API).
+
+### Arquivos tocados
+- `src/lib/validations/enrollment-recover.ts` (novo)
+- `src/lib/enrollment-recover.ts` (novo)
+- `src/app/api/enrollment/recover/route.ts` (novo)
+- `src/components/public/recover-access-form.tsx` (novo)
+- `src/app/(public-dark)/cursos/[slug]/entrar/page.tsx` (novo)
+- `src/components/public/course-detail-gate.tsx` (edit: +CTA `Já comprei? Entrar`)
+- `tests/unit/enrollment-recover.test.ts` (novo, 14 testes)
+- `tests/e2e/aluno-entrar.spec.ts` (novo, 5 testes)
+- `SPEC.md` (ADR-015)
+
+### Decisões
+- **ADR-015 criado** em `SPEC.md §6` — Recovery por email+CPF como ponte sem auth. Trade-off aceito: par compartilhável sem proteção contra pirataria deliberada (equivalente ao baseline atual de localStorage compartilhável). Critério de reabertura documentado: se pirataria virar problema mensurável, magic link é o caminho default.
+- **Não vazar reason no frontend:** o backend retorna `{ ok: false, reason }` (útil pra debug via curl/devtools/logs), mas a UI mostra a mesma mensagem genérica nos 3 reasons (`not_found`, `not_active`, `cpf_mismatch`). Conforme §3.4 do prompt yolo.
+- **CPF armazenado só com dígitos** no `Payment.studentCpf` (validado em `/api/checkout/create:33` que faz `stripCpfMask` antes de gravar). Comparação no recovery normaliza ambos os lados via `stripCpfMask` por segurança.
+- **Deps injetadas em vez de Prisma direto** na função `recoverEnrollment` — escolha consciente pra manter a lógica testável sem mock pesado de Prisma. Route handler é o único que conhece o `db`.
+- **Validação manual obrigatória antes de merge `develop → main`** porque o e2e local rodou parcialmente (vide blockers).
+
+### Resultados dos gates
+- `pnpm typecheck`: ✓
+- `pnpm lint`: ✓ nos arquivos do projeto (2 erros pré-existentes em `scripts/inspect.ts` e `scripts/unlock-exam.ts` — arquivos untracked fora do escopo, conforme alinhado).
+- `pnpm test` (Vitest): ✓ 92/92 (78 anteriores + 14 novos).
+- `pnpm test:e2e` (Playwright): **parcial — 1/5**. Único que passou foi o rate-limit (que usa `request` API sem browser). Os 4 specs com browser falharam pré-execução por libs faltando no devcontainer Trixie atual: `libnspr4.so` não disponível, ref. commit `d036d2a`. Conforme combinado, não tentei `--with-deps` (incompatível com a base Trixie); validação manual obrigatória antes do merge `develop → main`.
+
+### Lições aprendidas
+- **Lint (process bug descoberto em F6):** rodar sempre `pnpm lint` (= `biome check .`) antes de commitar, **nunca** `npx biome check <path>` ou `pnpm exec biome check <path>` em arquivo individual. A invocação por path explícito tem quirks de resolução de glob — durante a sessão, vimos `Checked 0 files` voltar pra arquivos `.tsx` válidos que existiam no disco, e o lint por path passou enquanto o `biome check .` do CI pegou problemas de formatação. Resultado: `tests/e2e/aluno-entrar.spec.ts` passou nos checks individuais que rodei localmente mas quebrou no CI (2 trechos sobre-quebrados: arrow function de 1 arg e `.fill()` encadeado). Fix posterior em commit `0231bb6 chore: format aluno-entrar e2e spec` via `biome format --write`. **Regra:** se for confiar em lint local pra prever CI, é `pnpm lint`/`pnpm gates`, não path-by-path.
+
+### Próximos passos
+- Push da branch + abertura de PR contra `develop`.
+- Validação manual no preview Vercel (ou `pnpm build && pnpm start` local com banco populado): rodar checklist do §4.3 do prompt yolo (2 botões lado a lado mobile + desktop, navegação, CPF inválido inline, happy path real, mensagem genérica em cada caso de erro, Enter no campo CPF submete, tab order + aria).
+- Após validação, merge `develop → main --ff-only` → deploy automático Vercel produção em `main`.
+
+### Blockers / pendências
+- **Restaurar Playwright no Dockerfile do devcontainer** — o `RUN playwright install` está comentado desde `d036d2a` por incompatibilidade com Debian Trixie. Fix: atualizar pra Playwright ≥ 1.55 ou trocar a base do devcontainer pra Bookworm; depois descomentar as linhas correspondentes no `.devcontainer/Dockerfile` e validar que `pnpm test:e2e` roda completo. Workaround usado nesta sessão: instalar Chromium em `$HOME/.cache/ms-playwright` (download OK, mas execução continua falhando por libs de sistema).
+- **Anti-pirataria (follow-up do ADR-015):** email+CPF continuam compartilháveis. Decisão de produto pendente — só endereçar se pirataria virar problema mensurável. Default técnico quando reabrir: magic link via Resend (já configurado em F5).
+- **"Esqueci email/CPF":** não há fluxo de auto-recuperação se aluno esqueceu os dados que usou na compra. Solução atual: contato manual via WhatsApp / `/contato`. Documentar em FAQ quando houver.
+- **URL do site no perfil AbacatePay:** ainda aponta pra `netflix-cursos.vercel.app`. Abrir ticket pra trocar pra `ativaengenharia.net` quando DNS estiver propagado.
+- **Claude Code Review action com 401:** o secret `ANTHROPIC_API_KEY` do repo está inválido/expirado. Workflow `.github/workflows/claude-review.yml` (ou similar) dispara em todo PR e falha em ~19s com `401 Invalid bearer token`. Não bloqueia merge — gates principais (`typecheck`/`lint`/`test`) são jobs separados. Fix: gerar API key nova em console.anthropic.com → API Keys, copiar valor, ir em Settings → Secrets and variables → Actions do repo no GitHub, editar `ANTHROPIC_API_KEY` colando valor novo.
