@@ -501,6 +501,9 @@ F5 (Polish) entregue via Claude Code em sessão YOLO de ~56min, mergeada em `dev
 - `pnpm test` (Vitest): ✓ 92/92 (78 anteriores + 14 novos).
 - `pnpm test:e2e` (Playwright): **parcial — 1/5**. Único que passou foi o rate-limit (que usa `request` API sem browser). Os 4 specs com browser falharam pré-execução por libs faltando no devcontainer Trixie atual: `libnspr4.so` não disponível, ref. commit `d036d2a`. Conforme combinado, não tentei `--with-deps` (incompatível com a base Trixie); validação manual obrigatória antes do merge `develop → main`.
 
+### Lições aprendidas
+- **Lint (process bug descoberto em F6):** rodar sempre `pnpm lint` (= `biome check .`) antes de commitar, **nunca** `npx biome check <path>` ou `pnpm exec biome check <path>` em arquivo individual. A invocação por path explícito tem quirks de resolução de glob — durante a sessão, vimos `Checked 0 files` voltar pra arquivos `.tsx` válidos que existiam no disco, e o lint por path passou enquanto o `biome check .` do CI pegou problemas de formatação. Resultado: `tests/e2e/aluno-entrar.spec.ts` passou nos checks individuais que rodei localmente mas quebrou no CI (2 trechos sobre-quebrados: arrow function de 1 arg e `.fill()` encadeado). Fix posterior em commit `0231bb6 chore: format aluno-entrar e2e spec` via `biome format --write`. **Regra:** se for confiar em lint local pra prever CI, é `pnpm lint`/`pnpm gates`, não path-by-path.
+
 ### Próximos passos
 - Push da branch + abertura de PR contra `develop`.
 - Validação manual no preview Vercel (ou `pnpm build && pnpm start` local com banco populado): rodar checklist do §4.3 do prompt yolo (2 botões lado a lado mobile + desktop, navegação, CPF inválido inline, happy path real, mensagem genérica em cada caso de erro, Enter no campo CPF submete, tab order + aria).
