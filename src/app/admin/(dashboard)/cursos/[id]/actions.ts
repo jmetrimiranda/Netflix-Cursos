@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { lessonInputSchema } from "@/lib/validations/lesson";
 import { moduleInputSchema } from "@/lib/validations/module";
+import { extractYoutubeId } from "@/lib/youtube";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -86,14 +87,35 @@ export async function reorderModulesAction(
   return { success: true };
 }
 
+type VideoFields =
+  | { youtubeVideoId: string; bunnyVideoId: null; bunnyLibraryId: null }
+  | { youtubeVideoId: null };
+
+/**
+ * Resolve o input `videoSource` em mutação Prisma.
+ *
+ * - vazio: zera youtubeVideoId; NÃO toca em bunny* (rollback path do ADR-016 —
+ *   aula legacy hospedada em Bunny segue funcionando se admin salvar sem
+ *   trocar nada).
+ * - válido (extractYoutubeId retorna string): grava youtubeVideoId E zera
+ *   ambos os bunny* na mesma transação (single source of truth).
+ * - inválido: retorna null para o handler rejeitar.
+ */
+function resolveVideoFields(videoSource: string | undefined): VideoFields | null {
+  if (!videoSource || videoSource.trim() === "") {
+    return { youtubeVideoId: null };
+  }
+  const id = extractYoutubeId(videoSource);
+  if (!id) return null;
+  return { youtubeVideoId: id, bunnyVideoId: null, bunnyLibraryId: null };
+}
+
 export async function createLessonAction(moduleId: string, fd: FormData): Promise<ActionResult> {
   await requireAdmin();
   const raw = {
     title: typeof fd.get("title") === "string" ? fd.get("title") : "",
-    bunnyVideoId:
-      typeof fd.get("bunnyVideoId") === "string" ? (fd.get("bunnyVideoId") as string) : "",
-    bunnyLibraryId:
-      typeof fd.get("bunnyLibraryId") === "string" ? (fd.get("bunnyLibraryId") as string) : "",
+    videoSource:
+      typeof fd.get("videoSource") === "string" ? (fd.get("videoSource") as string) : "",
     sidebarContentJson:
       typeof fd.get("sidebarContentJson") === "string"
         ? (fd.get("sidebarContentJson") as string)
@@ -105,6 +127,9 @@ export async function createLessonAction(moduleId: string, fd: FormData): Promis
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
+
+  const video = resolveVideoFields(parsed.data.videoSource);
+  if (video === null) return { error: "URL ou ID do YouTube inválido" };
 
   const moduleRecord = await db.module.findUnique({
     where: { id: moduleId },
@@ -132,8 +157,7 @@ export async function createLessonAction(moduleId: string, fd: FormData): Promis
       moduleId,
       title: parsed.data.title,
       order: (last?.order ?? -1) + 1,
-      bunnyVideoId: parsed.data.bunnyVideoId ?? null,
-      bunnyLibraryId: parsed.data.bunnyLibraryId ?? null,
+      ...video,
       sidebarContent: sidebarContent === null ? undefined : (sidebarContent as object),
       sidebarPdfUrl: parsed.data.sidebarPdfUrl ?? null,
     },
@@ -147,10 +171,8 @@ export async function updateLessonAction(lessonId: string, fd: FormData): Promis
   await requireAdmin();
   const raw = {
     title: typeof fd.get("title") === "string" ? fd.get("title") : "",
-    bunnyVideoId:
-      typeof fd.get("bunnyVideoId") === "string" ? (fd.get("bunnyVideoId") as string) : "",
-    bunnyLibraryId:
-      typeof fd.get("bunnyLibraryId") === "string" ? (fd.get("bunnyLibraryId") as string) : "",
+    videoSource:
+      typeof fd.get("videoSource") === "string" ? (fd.get("videoSource") as string) : "",
     sidebarContentJson:
       typeof fd.get("sidebarContentJson") === "string"
         ? (fd.get("sidebarContentJson") as string)
@@ -162,6 +184,9 @@ export async function updateLessonAction(lessonId: string, fd: FormData): Promis
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
+
+  const video = resolveVideoFields(parsed.data.videoSource);
+  if (video === null) return { error: "URL ou ID do YouTube inválido" };
 
   let sidebarContent: unknown = null;
   if (parsed.data.sidebarContentJson && parsed.data.sidebarContentJson.trim() !== "") {
@@ -176,8 +201,7 @@ export async function updateLessonAction(lessonId: string, fd: FormData): Promis
     where: { id: lessonId },
     data: {
       title: parsed.data.title,
-      bunnyVideoId: parsed.data.bunnyVideoId ?? null,
-      bunnyLibraryId: parsed.data.bunnyLibraryId ?? null,
+      ...video,
       sidebarContent: sidebarContent === null ? undefined : (sidebarContent as object),
       sidebarPdfUrl: parsed.data.sidebarPdfUrl ?? null,
     },

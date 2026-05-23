@@ -2,16 +2,12 @@ import { z } from "zod";
 
 export const lessonInputSchema = z.object({
   title: z.string().trim().min(2, "Título obrigatório").max(200),
-  bunnyVideoId: z
+  // Aceita URL ou ID YouTube. Validação do conteúdo via extractYoutubeId no
+  // handler (ADR-016); aqui só limitamos tamanho e normalizamos vazio.
+  videoSource: z
     .string()
     .trim()
-    .max(100)
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  bunnyLibraryId: z
-    .string()
-    .trim()
-    .max(100)
+    .max(500)
     .optional()
     .or(z.literal("").transform(() => undefined)),
   sidebarContentJson: z.string().optional().default(""),
