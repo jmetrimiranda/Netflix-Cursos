@@ -515,3 +515,64 @@ F5 (Polish) entregue via Claude Code em sessão YOLO de ~56min, mergeada em `dev
 - **"Esqueci email/CPF":** não há fluxo de auto-recuperação se aluno esqueceu os dados que usou na compra. Solução atual: contato manual via WhatsApp / `/contato`. Documentar em FAQ quando houver.
 - **URL do site no perfil AbacatePay:** ainda aponta pra `netflix-cursos.vercel.app`. Abrir ticket pra trocar pra `ativaengenharia.net` quando DNS estiver propagado.
 - **Claude Code Review action com 401:** o secret `ANTHROPIC_API_KEY` do repo está inválido/expirado. Workflow `.github/workflows/claude-review.yml` (ou similar) dispara em todo PR e falha em ~19s com `401 Invalid bearer token`. Não bloqueia merge — gates principais (`typecheck`/`lint`/`test`) são jobs separados. Fix: gerar API key nova em console.anthropic.com → API Keys, copiar valor, ir em Settings → Secrets and variables → Actions do repo no GitHub, editar `ANTHROPIC_API_KEY` colando valor novo.
+
+---
+## 2026-05-23 20:45 — feature/youtube-video — F7 migração Bunny → YouTube unlisted
+
+**Fase:** F7
+**PR:** em andamento (branch `feature/youtube-video`)
+
+### O que foi feito
+- **ADR-016 em `SPEC.md §6`** — registra a migração de host de vídeo de Bunny Stream para YouTube unlisted. Supera o ADR-001. Trade-off explícito aceito: vídeo unlisted é descobrível por qualquer pessoa com a URL e baixável via ferramentas externas (yt-dlp). Mitigação: fricção no player (sem branding, sem related, sem teclado, right-click bloqueado no wrapper, `select-none` no container) — não é proteção. Linguagem operacional: usar "fricção contra cópia casual", proibido "DRM"/"vídeo protegido"/"download impossível".
+- **Schema Prisma:** novo campo `Lesson.youtubeVideoId String?` (migration `20260523203208_add_lesson_youtube_video_id`). Campos `bunnyVideoId`/`bunnyLibraryId` mantidos nullable durante a transição. Limpeza em PR separado quando produção estiver estável com YouTube por ≥1 semana sem incidente.
+- **`src/lib/youtube.ts`** — `extractYoutubeId(input)` parseia URL nos 7 formatos comuns (watch, youtu.be, embed, shorts, mobile, nocookie, sem-www) ou ID puro de 11 chars no charset `[A-Za-z0-9_-]`. Trim no input, retorna null pra qualquer input inválido. `buildYoutubeEmbedUrl(id)` monta URL em `youtube-nocookie.com/embed/<id>` com params de fricção: `modestbranding=1`, `rel=0`, `iv_load_policy=3`, `disablekb=1`, `playsinline=1`, `fs=1`. Não inclui `controls=0` nem `autoplay=1` (decisão consciente — UX).
+- **`src/lib/video-embed.ts`** — router que escolhe provider. Prioriza YouTube quando `youtubeVideoId` presente; cai pra Bunny quando o par `(bunnyVideoId, bunnyLibraryId)` está completo; retorna null caso contrário. Permite migrar aula a aula em produção sem precisar limpar campos Bunny no mesmo passo.
+- **`<LessonPlayer/>`** refactorizado pra receber `lesson` único (objeto com os 3 campos). Wrapper recebe `onContextMenu={preventDefault}` + classe `select-none` — fricção, explícita em jsdoc no componente. Iframe segue com `allowFullScreen` (UX legítima). Component virou `"use client"` por causa do handler de evento.
+- **Admin lesson form** (`/admin/cursos/[id]/_components/lesson-form.tsx`): `<VideoUploader>` (TUS Bunny) removido. Substituído por `<Input>` simples + helper text dinâmico (✓ ID detectado / URL inválido / vazio com guidance) + alerta âmbar inline com aviso sobre unlisted/sem-domain-restriction + referência ADR-016. Quando a aula tem Bunny legado, um segundo alerta azul explica a transição.
+- **Server actions** (`actions.ts`): nova função `resolveVideoFields(videoSource)` com 3 caminhos — vazio zera youtubeVideoId mas NÃO toca em bunny* (rollback path); válido grava youtube + zera bunny* na mesma transação; inválido retorna null (handler rejeita com `URL ou ID do YouTube inválido`). Validação dupla (client side instantânea + server side autoritativa).
+- **43 testes Vitest novos** entre `youtube.test.ts` (URL parsing edge cases + assertion de params de embed), `video-embed.test.ts` (router YouTube vs Bunny vs null) e `lesson-validation.test.ts` (schema Zod + pipeline mirror do server action). Total agora: 135/135 passando (era 92 antes do F7).
+- **README**: nova seção "Cadastrando vídeo de aula (YouTube unlisted)" com 7 passos + aviso operacional sobre baixabilidade + sub-seção "Migrar aula legada do Bunny para YouTube" explicando o comportamento do form na transição.
+
+### Arquivos tocados
+- `SPEC.md` (ADR-016)
+- `prisma/schema.prisma` (+ migration)
+- `src/lib/youtube.ts` (novo)
+- `src/lib/video-embed.ts` (novo)
+- `src/lib/validations/lesson.ts` (trocou `bunnyVideoId`/`bunnyLibraryId` por `videoSource`)
+- `src/components/public/lesson-player.tsx` (refactor)
+- `src/components/public/lesson-view.tsx` (prop type + call site)
+- `src/components/public/lesson-access-gate.tsx` (prop type)
+- `src/app/(public-dark)/cursos/[slug]/aulas/[lessonId]/page.tsx` (propaga youtubeVideoId)
+- `src/app/admin/(dashboard)/cursos/[id]/page.tsx` (select youtubeVideoId)
+- `src/app/admin/(dashboard)/cursos/[id]/_components/modules-panel.tsx` (type + badge)
+- `src/app/admin/(dashboard)/cursos/[id]/_components/lesson-form.tsx` (rewrite)
+- `src/app/admin/(dashboard)/cursos/[id]/actions.ts` (resolveVideoFields)
+- `tests/unit/youtube.test.ts` (novo)
+- `tests/unit/video-embed.test.ts` (novo)
+- `tests/unit/lesson-validation.test.ts` (novo)
+- `README.md` (nova seção)
+
+### Decisões
+- **ADR-016 supera ADR-001.** Motivação registrada lá: custo + simplicidade operacional. Trade-off aceito em paralelo ao ADR-015 (recovery email+CPF compartilhável).
+- **Bunny não foi removido nesta PR.** Limpeza dos arquivos (`src/lib/bunny.ts`, `src/lib/bunny-embed.ts`, `src/app/api/admin/bunny/create-video/route.ts`, `src/components/admin/video-uploader.tsx`), da dep `tus-js-client`, das vars `BUNNY_STREAM_*`, e dos campos Prisma `bunnyVideoId`/`bunnyLibraryId` vem em PR separado quando produção estiver estável com YouTube por ≥1 semana sem incidente.
+- **`youtube-nocookie.com` em vez de `youtube.com`** — única razão LGPD. `youtube.com` grava cookies DoubleClick antes do clique (tracking sem base legal); `youtube-nocookie.com` só grava após interação real. Mesmo player, mesmo custo (zero).
+- **Embed params escolhidos com justificativa:** `modestbranding`, `rel=0`, `iv_load_policy=3`, `disablekb=1`, `playsinline=1`, `fs=1`. **Não usados:** `controls=0` (quebra UX), `autoplay=1` (bloqueado em mobile e fricciona experiência).
+- **Rollback path no form do admin.** Se admin abrir aula legacy com Bunny e salvar sem colar nada no campo YouTube, a Bunny continua tocando. Isso permite reverter aula a aula sem código novo, caso YouTube tenha problema.
+- **`<LessonPlayer/>` virou client component** por causa do `onContextMenu`. Justificado — Server Components não suportam event handlers, e a fricção precisa do handler.
+
+### Resultados dos gates
+- `pnpm typecheck`: ✓
+- `pnpm lint`: ✓ nos arquivos do projeto (2 erros pré-existentes em `scripts/inspect.ts` e `scripts/unlock-exam.ts` — untracked, fora do escopo, conforme alinhado em F6).
+- `pnpm test` (Vitest): ✓ **135/135** (92 anteriores + 43 novos).
+- `pnpm test:e2e` (Playwright): **não rodado nesta sessão** — devcontainer Trixie ainda sem `libnspr4.so`, pendência aberta da F6.
+
+### Próximos passos
+- Push da branch + abertura de PR contra `develop` (instrução do briefing: NÃO mergear nesta sessão).
+- Validação manual no preview Vercel: criar aula nova com URL YouTube, conferir que toca; abrir aula legacy com Bunny (se houver em prod — provavelmente nenhuma, dado que Bunny nunca foi usado em produção segundo a F5) e conferir que o aviso azul aparece; rodar checklist do README "Cadastrando vídeo de aula".
+- Após merge em `develop` e ≥1 semana estável, PR de limpeza: remover lib Bunny, dep `tus-js-client`, vars `BUNNY_*`, campos Prisma `bunnyVideoId`/`bunnyLibraryId` (em migration `drop column`), código em `<VideoUploader>`. Validar antes que não há Lesson em prod com `bunnyVideoId IS NOT NULL`.
+
+### Blockers / pendências
+- **Bunny não foi removido nesta PR** — intencional, ver decisões. Limpeza em PR separado após ≥1 semana com YouTube estável em produção sem incidente.
+- **E2E não rodou local** (mesma limitação da F6 — `libnspr4.so` ausente no devcontainer Trixie). Validação manual no preview Vercel obrigatória antes do merge `develop → main`.
+- **Migração de aulas legacy em prod:** Bunny nunca foi usado em produção (credenciais ficaram pendentes desde F5). Não deve haver Lesson com `bunnyVideoId` em prod hoje, mas vale confirmar via `pnpm db:studio` ou query SQL antes do PR de limpeza eventual: `SELECT id, title FROM "Lesson" WHERE "bunnyVideoId" IS NOT NULL;`.
+- **Linguagem operacional** sobre fricção vs proteção precisa ser respeitada em todas as comunicações futuras (commits, ADRs, README, PR descriptions, comentários). Proibido usar "DRM", "vídeo protegido", "download impossível", "conteúdo seguro". Use "fricção contra cópia casual" e "trade-off aceito em ADR-016".

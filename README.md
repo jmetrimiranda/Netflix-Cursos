@@ -85,6 +85,35 @@ Detalhes de processo (branches, conventional commits, `task.md`) em `CLAUDE.md`.
 
 ---
 
+## Cadastrando vídeo de aula (YouTube unlisted)
+
+Fonte de vídeo atual é YouTube unlisted, conforme ADR-016. Passo a passo:
+
+1. **Subir o vídeo no [YouTube Studio](https://studio.youtube.com).**
+2. Em "Visibilidade", escolher **"Não listado"** — não escolher "Privado" (só você assiste) nem "Público" (aparece em busca).
+3. Copiar a **URL** do vídeo (qualquer formato funciona: `https://youtu.be/<id>`, `https://www.youtube.com/watch?v=<id>`, ou só o **ID** de 11 caracteres).
+4. No admin (`/admin/cursos/<id>`), abrir a aula e colar no campo **Vídeo (YouTube)**.
+5. Verificar que aparece **"✓ ID detectado: <id>"** abaixo do input. Se aparecer "URL ou ID inválido", revisar o copiar/colar.
+6. **Salvar** a aula.
+7. Conferir que o vídeo carrega na página pública: `/cursos/<slug>/aulas/<lessonId>`.
+
+**Atenção operacional sobre YouTube unlisted** (trade-off aceito em ADR-016):
+
+- Vídeo unlisted é **descobrível por qualquer pessoa com a URL**. Não há restrição por domínio.
+- O conteúdo é **baixável via ferramentas externas** (yt-dlp, extensões de browser). O embed do YouTube no site tem fricção (sem branding, sem related, atalhos de teclado desabilitados, right-click bloqueado no wrapper) mas isso **não é proteção** — é fricção contra cópia casual.
+- Não publique conteúdo crítico ou confidencial no YouTube unlisted. Para conteúdo que precise de proteção real, ver alternativas em `infraestrutura.md §3` (Bunny pago, Vimeo, R2+CDN próprio).
+
+### Migrar aula legada do Bunny para YouTube
+
+Aulas criadas antes do ADR-016 podem ter vídeo hospedado no Bunny Stream (campo `bunnyVideoId`). Comportamento do form na transição:
+
+- Aulas com vídeo Bunny aparecem com badge **"vídeo ✓ (Bunny — legado)"** em âmbar na lista de aulas do admin.
+- Ao abrir o edit, um aviso azul aparece explicando que colar uma URL YouTube vai migrar.
+- Salvar **sem** colar nada: Bunny continua tocando (rollback path).
+- Salvar **com** URL/ID válido do YouTube: o YouTube ID é gravado e os campos `bunnyVideoId`/`bunnyLibraryId` são zerados na mesma transação. Migração concluída pra essa aula.
+
+---
+
 ## Deploy em produção (Vercel + Neon)
 
 Tempo estimado pra subir do zero: **15–25 min** (assumindo contas já criadas).
