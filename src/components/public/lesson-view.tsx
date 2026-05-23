@@ -28,6 +28,7 @@ type Props = {
   lesson: {
     id: string;
     title: string;
+    youtubeVideoId: string | null;
     bunnyVideoId: string | null;
     bunnyLibraryId: string | null;
     durationSeconds: number | null;
@@ -176,8 +177,11 @@ export function LessonView({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-4">
           <LessonPlayer
-            libraryId={lesson.bunnyLibraryId}
-            videoId={lesson.bunnyVideoId}
+            lesson={{
+              youtubeVideoId: lesson.youtubeVideoId,
+              bunnyVideoId: lesson.bunnyVideoId,
+              bunnyLibraryId: lesson.bunnyLibraryId,
+            }}
             title={lesson.title}
           />
           <div className="flex items-center justify-between gap-2">

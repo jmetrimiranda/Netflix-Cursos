@@ -77,6 +77,7 @@ model Lesson {
   moduleId        String
   title           String
   order           Int
+  youtubeVideoId  String?
   bunnyVideoId    String?
   bunnyLibraryId  String?
   durationSeconds Int?

@@ -363,6 +363,24 @@ Os textos de páginas institucionais (`/`, `/servicos`, `/quem-somos`, `/faq`, `
 - **Padrão suspeito nos logs `[enrollment-recover]`** — revisão manual mensal procurando `ok` repetido pro mesmo email em IPs geograficamente distantes ou em janela curta (ex.: mesma hora em São Paulo e Manaus). Sem alerta automático por enquanto; quando virar ruído frequente, vale criar dashboard.
 - **Receita caindo sem queda proporcional de tráfego** (Vercel Analytics + AbacatePay dashboard) — sinal indireto de que o curso está sendo consumido sem conversão correspondente.
 Quando reabrir, magic link é o caminho default (Resend já configurado em F5).
+
+### ADR-016: Migração Bunny Stream → YouTube unlisted como fonte de vídeo
+**Status:** Aceito. Supera o ADR-001 (escolha original do Bunny Stream).
+**Contexto:** Cliente decidiu migrar o host de vídeo das aulas de Bunny Stream para YouTube unlisted por dois motivos: (a) custo — Bunny tem mínimo USD 1/mês e cobra storage + delivery por uso, enquanto YouTube unlisted é gratuito sem cap relevante para o porte da Ativa; (b) simplicidade operacional — o admin não precisa subir vídeo via TUS resumable upload, basta colar a URL ou o ID do YouTube. Em paralelo, Bunny Stream nunca chegou a ser usado em produção (credenciais ficaram pendentes em F5), então a migração é zero-risco em termos de perda de conteúdo.
+**Decisão:** Usar YouTube unlisted via embed iframe em `youtube-nocookie.com`. O admin cadastra o vídeo colando a URL completa (qualquer formato suportado pelo YouTube — watch, youtu.be, embed, shorts, mobile) ou o ID puro de 11 caracteres no form de aula. O sistema extrai o ID e renderiza o embed no player do aluno. Schema Prisma ganha `Lesson.youtubeVideoId String?` enquanto `bunnyVideoId` / `bunnyLibraryId` permanecem nullable durante a transição para rollback rápido; limpeza dos campos Bunny em PR separado depois de ≥1 semana com YouTube estável.
+**Trade-off explícito (aceito conscientemente):** Vídeo unlisted é descobrível por qualquer pessoa com a URL, e baixável via ferramentas externas (yt-dlp, extensões de browser). Não há restrição por domínio nem DRM. Aceitamos esse risco em paralelo ao ADR-015 (recovery email+CPF compartilhável). Mitigação: fricção no player (sem branding do YouTube, sem vídeos relacionados, sem atalhos de teclado, right-click bloqueado no wrapper, `select-none` no container) e revisão futura se pirataria virar problema mensurável.
+**Por que `youtube-nocookie.com` e não `youtube.com`:** o domínio padrão `youtube.com/embed` grava cookies DoubleClick e analytics antes do clique do usuário no play, configurando tracking sem base legal sob LGPD (não há banner de consentimento prévio no app). O domínio `youtube-nocookie.com` é o "enhanced privacy mode" oficial do Google: cookies só são gravados após interação real do usuário, o que se aproxima de consentimento implícito. Custo: zero. Mesma API de embed, mesma qualidade.
+**Embed params usados** (montados em `src/lib/youtube.ts:buildYoutubeEmbedUrl`):
+- `modestbranding=1` — reduz branding do YouTube no player.
+- `rel=0` — não mostra vídeos relacionados ao pausar/terminar.
+- `iv_load_policy=3` — desabilita anotações.
+- `disablekb=1` — desabilita atalhos de teclado.
+- `playsinline=1` — em mobile, vídeo toca inline em vez de fullscreen automático (UX legítima).
+- `fs=1` — permite fullscreen pelo botão do player (UX legítima).
+- **Não usados conscientemente:** `controls=0` (quebra UX), `autoplay=1` (bloqueado em mobile e fricciona experiência).
+**Linguagem operacional sobre a fricção (regra de comunicação):** Todo material — código, ADRs, README, commits — deve descrever as camadas como "fricção contra cópia casual", "trade-off conhecido aceito em ADR-016". Expressões como "download impossível", "DRM", "vídeo protegido", "conteúdo seguro" são proibidas porque criam expectativa falsa de proteção que a solução não entrega.
+**Alternativas consideradas e descartadas (resumo):** Bunny pago (USD 1+/mês + uso) — descartado pelo cliente por custo recorrente; Vimeo Pro (~USD 70+/mês) — caro pro porte; Wistia (USD 99+/mês) — mais caro; R2 + HLS próprio — implementação significativa (transcoding, player, segmentação) e custo de manutenção. YouTube unlisted ganha em custo e simplicidade, paga em controle e em risco de takedown silencioso pelo Google (documentado e aceito).
+**Quando reabrir:** se YouTube derrubar vídeo unlisted da Ativa sem aviso (takedown silencioso), banir a conta inteira (perda de todos os vídeos), ou se pirataria por yt-dlp virar problema mensurável (mesmo critério qualitativo do ADR-015 — reclamações, padrão de uso suspeito, queda de receita sem queda de tráfego). Caminho de saída: migração reversa para R2+HLS ou Bunny pago.
 ---
 
 ## 7. Variáveis de Ambiente

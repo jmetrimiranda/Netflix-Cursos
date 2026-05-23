@@ -37,6 +37,7 @@ export type LessonItem = {
   id: string;
   title: string;
   order: number;
+  youtubeVideoId: string | null;
   bunnyVideoId: string | null;
   bunnyLibraryId: string | null;
   sidebarContent: JSONContent | null;
@@ -364,8 +365,10 @@ function LessonRow({
           ⋮⋮
         </button>
         <span className="flex-1 text-sm">{lesson.title}</span>
-        {lesson.bunnyVideoId ? (
-          <span className="text-xs text-muted-foreground">vídeo ✓</span>
+        {lesson.youtubeVideoId ? (
+          <span className="text-xs text-muted-foreground">vídeo ✓ (YouTube)</span>
+        ) : lesson.bunnyVideoId ? (
+          <span className="text-xs text-amber-600">vídeo ✓ (Bunny — legado)</span>
         ) : (
           <span className="text-xs text-muted-foreground">sem vídeo</span>
         )}
@@ -392,6 +395,7 @@ function LessonRow({
             lessonId={lesson.id}
             defaults={{
               title: lesson.title,
+              youtubeVideoId: lesson.youtubeVideoId,
               bunnyVideoId: lesson.bunnyVideoId,
               bunnyLibraryId: lesson.bunnyLibraryId,
               sidebarContent: lesson.sidebarContent,

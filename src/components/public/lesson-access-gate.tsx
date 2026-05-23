@@ -17,6 +17,7 @@ type Props = {
   lesson: {
     id: string;
     title: string;
+    youtubeVideoId: string | null;
     bunnyVideoId: string | null;
     bunnyLibraryId: string | null;
     durationSeconds: number | null;
