@@ -25,10 +25,12 @@ const styles = StyleSheet.create({
     color: "#1a2f4a",
     backgroundColor: "#ffffff",
   },
-  // Marca d'água: cobre a página inteira e centraliza a imagem. É o PRIMEIRO
-  // filho do <Page> → renderiza ATRÁS do conteúdo (ordem de documento). A
-  // arte (logo 1.png) já é muito translúcida (alpha médio ~5/255), então NÃO
-  // aplicamos opacity extra. Item de maior risco — validar visualmente.
+  // Marca d'água: cobre a página inteira e centraliza a imagem. Renderizada
+  // como PRIMEIRO filho do <Page> com a prop `fixed` → fica ATRÁS do conteúdo
+  // (ordem de documento) E é excluída do cálculo de paginação. Sem `fixed`,
+  // este wrapper absolute (top:0/bottom:0 = altura cheia da página) excede a
+  // área útil e força uma página em branco extra. A arte (logo 1.png) já é
+  // muito translúcida (alpha médio ~5/255), então NÃO aplicamos opacity extra.
   watermarkWrap: {
     position: "absolute",
     top: 0,
@@ -53,6 +55,15 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     objectFit: "contain",
+  },
+  headerRight: {
+    alignItems: "flex-end",
+    maxWidth: 300,
+  },
+  headerCode: {
+    fontSize: 9,
+    color: "#3D5A80",
+    marginBottom: 6,
   },
   subtitle: {
     fontSize: 11,
@@ -134,9 +145,6 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: "#3D5A80",
     maxWidth: 320,
-  },
-  qrBlock: {
-    alignItems: "center",
   },
   qrImage: {
     width: 72,
@@ -260,13 +268,20 @@ export function CertificateTemplate(props: Props) {
     <Document>
       {/* PÁGINA 1 — certificado */}
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <View style={styles.watermarkWrap}>
+        <View fixed style={styles.watermarkWrap}>
           <Image src={WATERMARK_BASE64} style={styles.watermarkImg} />
         </View>
 
         <View style={styles.topRow}>
           <Image src={LOGO_BASE64} style={styles.logo} />
-          <Text style={{ fontSize: 9, color: "#3D5A80" }}>Código: {props.verificationCode}</Text>
+          {/* QR de verificação no topo-direito — área própria, longe do bloco
+              de assinatura do aluno (rodapé) para não sobrepor. */}
+          <View style={styles.headerRight}>
+            <Text style={styles.headerCode}>Código: {props.verificationCode}</Text>
+            {props.qrPngBuffer && <Image src={props.qrPngBuffer} style={styles.qrImage} />}
+            <Text style={styles.verifyText}>Verificar autenticidade:</Text>
+            <Text style={styles.codeText}>{props.verificationUrl}</Text>
+          </View>
         </View>
 
         <Text style={styles.subtitle}>Ativa Engenharia · Capacitação Técnica</Text>
@@ -294,17 +309,12 @@ export function CertificateTemplate(props: Props) {
 
         <View style={styles.footerRow}>
           <Text style={styles.footerCnpj}>{CNPJ_FOOTER}</Text>
-          <View style={styles.qrBlock}>
-            {props.qrPngBuffer && <Image src={props.qrPngBuffer} style={styles.qrImage} />}
-            <Text style={styles.verifyText}>Verificar autenticidade:</Text>
-            <Text style={styles.codeText}>{props.verificationUrl}</Text>
-          </View>
         </View>
       </Page>
 
       {/* PÁGINA 2 — escopo acadêmico */}
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <View style={styles.watermarkWrap}>
+        <View fixed style={styles.watermarkWrap}>
           <Image src={WATERMARK_BASE64} style={styles.watermarkImg} />
         </View>
 
