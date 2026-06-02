@@ -2,6 +2,7 @@ import { HeroCarousel } from "@/components/public/hero-carousel";
 import { WhatsAppButton } from "@/components/public/whatsapp-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { about } from "@/content/about";
+import { buildWhatsAppUrl } from "@/content/contact";
 import { seals } from "@/content/seals";
 import { categoryLabel } from "@/lib/categories";
 import { db } from "@/lib/db";
@@ -81,7 +82,9 @@ export default async function HomePage() {
                   <ArrowRight aria-hidden="true" className="ml-1.5 size-4" />
                 </Link>
                 <Link
-                  href="/contato"
+                  href={buildWhatsAppUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "lg" }),
                     "h-11 border-white/40 bg-white/10 px-6 text-base text-white backdrop-blur hover:bg-white/20 hover:text-white",
