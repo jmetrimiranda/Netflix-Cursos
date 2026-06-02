@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("F3.5 — landing institucional Ativa Engenharia", () => {
-  test("/ shows brand mark + 6 nav items + hero CTA", async ({ page }) => {
+  test("/ shows brand mark + reduced nav items + hero CTA", async ({ page }) => {
     await page.goto("/");
 
     // Brand mark in header
@@ -9,10 +9,15 @@ test.describe("F3.5 — landing institucional Ativa Engenharia", () => {
       page.getByRole("banner").getByRole("link", { name: /Ativa Engenharia.*página inicial/i }),
     ).toBeVisible();
 
-    // 6 main nav items reachable (visible at desktop viewport — Playwright defaults wide)
+    // Conversion-focused nav: only Home, Serviços, Cursos remain (visible at desktop viewport)
     const nav = page.getByRole("navigation", { name: "Navegação principal" });
-    for (const label of ["Home", "Serviços", "Cursos", "Quem Somos", "FAQ", "Contato"]) {
+    for (const label of ["Home", "Serviços", "Cursos"]) {
       await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
+    }
+
+    // Removed from the menu (pages still reachable by direct URL, just not in nav)
+    for (const label of ["Quem Somos", "FAQ", "Contato"]) {
+      await expect(nav.getByRole("link", { name: label, exact: true })).toHaveCount(0);
     }
 
     // Hero headline + CTA
