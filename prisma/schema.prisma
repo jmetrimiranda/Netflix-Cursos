@@ -52,6 +52,13 @@ model Course {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
+  // Configuração do certificado (nullable: cursos antigos não quebram).
+  certificateCourseName String? // ex: "NR 17" — usado no título e no texto do certificado
+  certificateValidity   String? // ex: "12 MESES" — texto livre
+  examScopeTitle        String? // ex: "CURSO DE NR 17" — título da página de escopo
+  examScopeSubtitle     String? // ex: "ERGONOMIA" — subtítulo da página de escopo
+  examScopeTopics       String? // tópicos do escopo, um por linha
+
   modules     Module[]
   questions   Question[]
   enrollments Enrollment[]
