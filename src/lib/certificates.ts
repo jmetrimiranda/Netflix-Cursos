@@ -29,7 +29,17 @@ export async function issueCertificateIfNeeded(enrollmentId: string) {
       id: true,
       studentEmail: true,
       course: {
-        select: { id: true, title: true, workloadHours: true, examPassScore: true },
+        select: {
+          id: true,
+          title: true,
+          workloadHours: true,
+          examPassScore: true,
+          certificateCourseName: true,
+          certificateValidity: true,
+          examScopeTitle: true,
+          examScopeSubtitle: true,
+          examScopeTopics: true,
+        },
       },
       payment: {
         select: { status: true, studentName: true, studentCpf: true },
@@ -73,6 +83,11 @@ export async function issueCertificateIfNeeded(enrollmentId: string) {
       verificationCode,
       verificationUrl,
       qrPngBuffer,
+      certificateCourseName: enrollment.course.certificateCourseName,
+      certificateValidity: enrollment.course.certificateValidity,
+      examScopeTitle: enrollment.course.examScopeTitle,
+      examScopeSubtitle: enrollment.course.examScopeSubtitle,
+      examScopeTopics: enrollment.course.examScopeTopics,
     }),
   );
 
