@@ -2,6 +2,7 @@ import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/render
 import { LOGO_BASE64 } from "./assets/logo";
 import { PHOTO_BAND_BASE64 } from "./assets/photoBand";
 import { SIGNATURE_BASE64 } from "./assets/signature";
+import { WATERMARK_BASE64 } from "./assets/watermark";
 import { parseScopeTopics } from "./scope";
 
 // NOTE: assets de imagem são carregados via base64 inline (ver ./assets/logo.ts),
@@ -23,6 +24,24 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica",
     color: "#1a2f4a",
     backgroundColor: "#ffffff",
+  },
+  // Marca d'água: cobre a página inteira e centraliza a imagem. É o PRIMEIRO
+  // filho do <Page> → renderiza ATRÁS do conteúdo (ordem de documento). A
+  // arte (logo 1.png) já é muito translúcida (alpha médio ~5/255), então NÃO
+  // aplicamos opacity extra. Item de maior risco — validar visualmente.
+  watermarkWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  watermarkImg: {
+    width: 330,
+    height: 344,
+    objectFit: "contain",
   },
   topRow: {
     flexDirection: "row",
@@ -239,11 +258,12 @@ export function CertificateTemplate(props: Props) {
 
   return (
     <Document>
-      {/* TODO etapa 2: marca d'água base64 (PNG translúcido, position absolute
-          como primeiro filho do Page, antes do conteúdo). */}
-
       {/* PÁGINA 1 — certificado */}
       <Page size="A4" orientation="landscape" style={styles.page}>
+        <View style={styles.watermarkWrap}>
+          <Image src={WATERMARK_BASE64} style={styles.watermarkImg} />
+        </View>
+
         <View style={styles.topRow}>
           <Image src={LOGO_BASE64} style={styles.logo} />
           <Text style={{ fontSize: 9, color: "#3D5A80" }}>Código: {props.verificationCode}</Text>
@@ -284,6 +304,10 @@ export function CertificateTemplate(props: Props) {
 
       {/* PÁGINA 2 — escopo acadêmico */}
       <Page size="A4" orientation="landscape" style={styles.page}>
+        <View style={styles.watermarkWrap}>
+          <Image src={WATERMARK_BASE64} style={styles.watermarkImg} />
+        </View>
+
         {/* Banda de fotos — cabeçalho full-width no topo, conteúdo vem abaixo */}
         <Image src={PHOTO_BAND_BASE64} style={styles.photoBand} />
 
