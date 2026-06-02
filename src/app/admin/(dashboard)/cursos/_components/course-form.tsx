@@ -53,6 +53,11 @@ const EMPTY_DEFAULTS: CourseInput = {
   thumbnailUrl: undefined,
   featured: false,
   published: false,
+  certificateCourseName: "",
+  certificateValidity: "",
+  examScopeTitle: "",
+  examScopeSubtitle: "",
+  examScopeTopics: "",
 };
 
 export function CourseForm({ mode, courseId, defaults, slugLocked }: CourseFormProps) {
@@ -89,6 +94,11 @@ export function CourseForm({ mode, courseId, defaults, slugLocked }: CourseFormP
     if (values.thumbnailUrl) fd.set("thumbnailUrl", values.thumbnailUrl);
     fd.set("featured", values.featured ? "on" : "");
     fd.set("published", values.published ? "on" : "");
+    fd.set("certificateCourseName", values.certificateCourseName ?? "");
+    fd.set("certificateValidity", values.certificateValidity ?? "");
+    fd.set("examScopeTitle", values.examScopeTitle ?? "");
+    fd.set("examScopeSubtitle", values.examScopeSubtitle ?? "");
+    fd.set("examScopeTopics", values.examScopeTopics ?? "");
 
     startTransition(async () => {
       try {
@@ -323,6 +333,91 @@ export function CourseForm({ mode, courseId, defaults, slugLocked }: CourseFormP
                 />
                 <label htmlFor="course-published">Publicado</label>
               </div>
+            )}
+          />
+        </div>
+
+        <div className="space-y-4 rounded-lg border border-border p-4">
+          <div>
+            <h2 className="text-base font-semibold">Configuração do Certificado</h2>
+            <p className="text-sm text-muted-foreground">
+              Dados que aparecem no PDF do certificado e na página de escopo acadêmico. Nome do
+              aluno, CPF e data de emissão NÃO são configurados aqui — vêm do checkout e da emissão
+              automática. Campos vazios usam fallbacks (ex.: o título do curso).
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="certificateCourseName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome do curso no certificado</FormLabel>
+                  <FormControl>
+                    <Input placeholder="NR 17" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="certificateValidity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Validade</FormLabel>
+                  <FormControl>
+                    <Input placeholder="12 MESES" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="examScopeTitle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Título do escopo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="CURSO DE NR 17" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="examScopeSubtitle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subtítulo do escopo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="ERGONOMIA" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="examScopeTopics"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Escopo acadêmico</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={6}
+                    placeholder="Um tópico por linha..."
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
           />
         </div>

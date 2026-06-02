@@ -24,6 +24,10 @@ function parseCourseFormData(fd: FormData) {
     const v = get(k);
     return v === "on" || v === "true" || v === "1";
   };
+  const textOpt = (k: string) => {
+    const v = get(k).trim();
+    return v === "" ? undefined : v;
+  };
   const thumbnailUrl = get("thumbnailUrl").trim();
   return {
     title: get("title"),
@@ -37,6 +41,11 @@ function parseCourseFormData(fd: FormData) {
     thumbnailUrl: thumbnailUrl === "" ? undefined : thumbnailUrl,
     featured: bool("featured"),
     published: bool("published"),
+    certificateCourseName: textOpt("certificateCourseName"),
+    certificateValidity: textOpt("certificateValidity"),
+    examScopeTitle: textOpt("examScopeTitle"),
+    examScopeSubtitle: textOpt("examScopeSubtitle"),
+    examScopeTopics: textOpt("examScopeTopics"),
   };
 }
 
@@ -64,6 +73,11 @@ export async function createCourseAction(_prev: ActionResult, fd: FormData): Pro
         thumbnailUrl: parsed.data.thumbnailUrl ?? null,
         featured: parsed.data.featured,
         published: parsed.data.published,
+        certificateCourseName: parsed.data.certificateCourseName ?? null,
+        certificateValidity: parsed.data.certificateValidity ?? null,
+        examScopeTitle: parsed.data.examScopeTitle ?? null,
+        examScopeSubtitle: parsed.data.examScopeSubtitle ?? null,
+        examScopeTopics: parsed.data.examScopeTopics ?? null,
       },
       select: { id: true },
     });
@@ -117,6 +131,11 @@ export async function updateCourseAction(
         thumbnailUrl: parsed.data.thumbnailUrl ?? null,
         featured: parsed.data.featured,
         published: parsed.data.published,
+        certificateCourseName: parsed.data.certificateCourseName ?? null,
+        certificateValidity: parsed.data.certificateValidity ?? null,
+        examScopeTitle: parsed.data.examScopeTitle ?? null,
+        examScopeSubtitle: parsed.data.examScopeSubtitle ?? null,
+        examScopeTopics: parsed.data.examScopeTopics ?? null,
       },
     });
   } catch (err) {

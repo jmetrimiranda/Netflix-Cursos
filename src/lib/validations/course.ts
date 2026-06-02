@@ -27,6 +27,12 @@ export const courseInputSchema = z.object({
   thumbnailUrl: z.string().url().max(500).optional(),
   featured: z.boolean(),
   published: z.boolean(),
+  // Configuração do certificado — todos opcionais (cursos antigos ficam null).
+  certificateCourseName: z.string().trim().max(150).optional(),
+  certificateValidity: z.string().trim().max(100).optional(),
+  examScopeTitle: z.string().trim().max(150).optional(),
+  examScopeSubtitle: z.string().trim().max(150).optional(),
+  examScopeTopics: z.string().trim().max(5000).optional(),
 });
 
 export type CourseInput = z.infer<typeof courseInputSchema>;
