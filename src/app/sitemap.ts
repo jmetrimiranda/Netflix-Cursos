@@ -10,9 +10,6 @@ const STATIC_ROUTES: {
   { path: "/", changeFreq: "monthly", priority: 1 },
   { path: "/servicos", changeFreq: "monthly", priority: 0.9 },
   { path: "/cursos", changeFreq: "weekly", priority: 0.9 },
-  { path: "/quem-somos", changeFreq: "yearly", priority: 0.6 },
-  { path: "/faq", changeFreq: "yearly", priority: 0.5 },
-  { path: "/contato", changeFreq: "yearly", priority: 0.7 },
   { path: "/privacidade", changeFreq: "yearly", priority: 0.3 },
 ];
 
