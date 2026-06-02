@@ -1,6 +1,6 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { LOGO_BASE64 } from "./assets/logo";
-import { PhotoBandPlaceholder } from "./assets/placeholders";
+import { PHOTO_BAND_BASE64 } from "./assets/photoBand";
 import { parseScopeTopics } from "./scope";
 
 // NOTE: assets de imagem são carregados via base64 inline (ver ./assets/logo.ts),
@@ -122,6 +122,11 @@ const styles = StyleSheet.create({
     color: "#1E3A5F",
   },
   // Página 2 — escopo acadêmico
+  photoBand: {
+    width: "100%",
+    objectFit: "contain",
+    marginBottom: 22,
+  },
   scopeBox: {
     border: "1px solid #1E3A5F",
     borderRadius: 4,
@@ -258,7 +263,8 @@ export function CertificateTemplate(props: Props) {
 
       {/* PÁGINA 2 — escopo acadêmico */}
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <PhotoBandPlaceholder />
+        {/* Banda de fotos — cabeçalho full-width no topo, conteúdo vem abaixo */}
+        <Image src={PHOTO_BAND_BASE64} style={styles.photoBand} />
 
         <View style={styles.scopeBox}>
           <Text style={styles.scopeTitle}>{scopeTitle}</Text>
