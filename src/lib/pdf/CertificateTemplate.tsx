@@ -24,11 +24,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logo: {
-    width: 110,
-    height: 36,
+    width: 140,
+    height: 140,
     objectFit: "contain",
   },
   subtitle: {
