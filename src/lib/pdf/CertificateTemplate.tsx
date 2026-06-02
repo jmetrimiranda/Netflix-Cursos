@@ -1,6 +1,7 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { LOGO_BASE64 } from "./assets/logo";
 import { PHOTO_BAND_BASE64 } from "./assets/photoBand";
+import { SIGNATURE_BASE64 } from "./assets/signature";
 import { parseScopeTopics } from "./scope";
 
 // NOTE: assets de imagem são carregados via base64 inline (ver ./assets/logo.ts),
@@ -8,8 +9,11 @@ import { parseScopeTopics } from "./scope";
 // serverless da Vercel (public/ não entra no filesystem da lambda).
 
 const CNPJ_FOOTER = "BISSOLI ENGENHARIA E SERVIÇOS - CNPJ: 29.974.056/0001-29";
-const SIGNATURE_NAME =
-  "Eduardo Bissoli — Eng. Mecânico / Eng. de Segurança do Trabalho — CREA MT-038597/D";
+
+// O rótulo do responsável técnico NÃO repete nome/título/CREA porque a
+// imagem da assinatura (SIGNATURE_BASE64) já contém "EDUARDO BISSOLI",
+// "Eng° Mecânico..." e "CREA MT-038597/D". Evita duplicação.
+const SIGNATURE_LABEL = "RESPONSÁVEL TÉCNICO — ATIVA ENGENHARIA";
 
 const styles = StyleSheet.create({
   page: {
@@ -75,10 +79,20 @@ const styles = StyleSheet.create({
     color: "#1E3A5F",
   },
   signatureRow: {
-    marginTop: 44,
+    marginTop: 36,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "flex-end",
+  },
+  signatureCol: {
+    width: 280,
+    alignItems: "center",
+  },
+  signatureImage: {
+    width: 150,
+    height: 73,
+    objectFit: "contain",
+    marginBottom: 2,
   },
   signatureLine: {
     borderTop: "1px solid #1E3A5F",
@@ -175,9 +189,13 @@ const styles = StyleSheet.create({
   scopeSignature: {
     position: "absolute",
     right: 56,
-    bottom: 56,
+    bottom: 50,
     width: 280,
+    alignItems: "center",
+  },
+  scopeSignatureLabel: {
     borderTop: "1px solid #1E3A5F",
+    width: 280,
     paddingTop: 6,
     fontSize: 9,
     textAlign: "center",
@@ -247,7 +265,10 @@ export function CertificateTemplate(props: Props) {
         </View>
 
         <View style={styles.signatureRow}>
-          <Text style={styles.signatureLine}>{SIGNATURE_NAME}</Text>
+          <View style={styles.signatureCol}>
+            <Image src={SIGNATURE_BASE64} style={styles.signatureImage} />
+            <Text style={styles.signatureLine}>{SIGNATURE_LABEL}</Text>
+          </View>
           <Text style={styles.signatureLine}>{props.studentName}</Text>
         </View>
 
@@ -281,7 +302,10 @@ export function CertificateTemplate(props: Props) {
           ))}
         </View>
 
-        <Text style={styles.scopeSignature}>{SIGNATURE_NAME}</Text>
+        <View style={styles.scopeSignature}>
+          <Image src={SIGNATURE_BASE64} style={styles.signatureImage} />
+          <Text style={styles.scopeSignatureLabel}>{SIGNATURE_LABEL}</Text>
+        </View>
 
         <View style={styles.footerRow}>
           <Text style={styles.footerCnpj}>{CNPJ_FOOTER}</Text>
