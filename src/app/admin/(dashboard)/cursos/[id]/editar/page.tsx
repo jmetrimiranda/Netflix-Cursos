@@ -21,6 +21,11 @@ export default async function EditarCursoPage({ params }: { params: Promise<{ id
       thumbnailUrl: true,
       featured: true,
       published: true,
+      certificateCourseName: true,
+      certificateValidity: true,
+      examScopeTitle: true,
+      examScopeSubtitle: true,
+      examScopeTopics: true,
       _count: { select: { enrollments: true } },
     },
   });
@@ -39,6 +44,11 @@ export default async function EditarCursoPage({ params }: { params: Promise<{ id
     thumbnailUrl: course.thumbnailUrl ?? undefined,
     featured: course.featured,
     published: course.published,
+    certificateCourseName: course.certificateCourseName ?? undefined,
+    certificateValidity: course.certificateValidity ?? undefined,
+    examScopeTitle: course.examScopeTitle ?? undefined,
+    examScopeSubtitle: course.examScopeSubtitle ?? undefined,
+    examScopeTopics: course.examScopeTopics ?? undefined,
   };
 
   return (
