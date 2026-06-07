@@ -12,9 +12,10 @@ import { parseScopeTopics } from "./scope";
 // A imagem da assinatura (SIGNATURE_BASE64 = assinatura-nova.jpg) é um bloco
 // COMPLETO: rubrica + "EDUARDO BISSOLI" + títulos + "CREA MT-038597/D" +
 // carimbo redondo da Ativa/Bissoli Engenharia + CNPJ 29.974.056/0001-29.
-// Por isso NÃO renderizamos mais nem o rótulo de texto "RESPONSÁVEL TÉCNICO —
-// ATIVA ENGENHARIA" abaixo da assinatura, nem o rodapé com o CNPJ — tudo isso
-// já está dentro da própria imagem. Evita duplicação grosseira.
+// O ÚNICO texto que renderizamos abaixo da linha é o rótulo do PAPEL
+// ("RESPONSÁVEL TÉCNICO — ATIVA ENGENHARIA"), simétrico ao bloco do aluno.
+// NÃO repetir nome/CREA/profissão/CNPJ como texto — já estão na imagem.
+const SIGNATURE_LABEL = "RESPONSÁVEL TÉCNICO — ATIVA ENGENHARIA";
 
 const styles = StyleSheet.create({
   page: {
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     color: "#1E3A5F",
   },
   signatureRow: {
-    marginTop: 20,
+    marginTop: 16,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "flex-end",
@@ -127,12 +128,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   // assinatura-nova.jpg é um bloco completo (rubrica + nome + CREA + carimbo +
-  // CNPJ). Ratio ~1.415 (w/h): 150 de largura → ~106 de altura. Tamanho
-  // escolhido pra caber na página 1 (com logo grande + nome longo) mantendo
-  // o bloco legível.
+  // CNPJ). Ratio ~1.415 (w/h): 134 de largura → ~95 de altura. Tamanho
+  // calibrado (renderToBuffer) pra caber na página 1 com o logo grande, o
+  // nome longo E o rótulo/linha do responsável técnico abaixo da imagem,
+  // mantendo EXATAMENTE 2 páginas.
   signatureImage: {
-    width: 150,
-    height: 106,
+    width: 134,
+    height: 95,
     objectFit: "contain",
     marginBottom: 2,
   },
@@ -218,6 +220,14 @@ const styles = StyleSheet.create({
     width: 280,
     alignItems: "center",
   },
+  scopeSignatureLabel: {
+    borderTop: "1px solid #1E3A5F",
+    width: 280,
+    paddingTop: 6,
+    fontSize: 9,
+    textAlign: "center",
+    color: "#1a2f4a",
+  },
 });
 
 type Props = {
@@ -292,6 +302,7 @@ export function CertificateTemplate(props: Props) {
         <View style={styles.signatureRow}>
           <View style={styles.signatureCol}>
             <Image src={SIGNATURE_BASE64} style={styles.signatureImage} />
+            <Text style={styles.signatureLine}>{SIGNATURE_LABEL}</Text>
           </View>
           <Text style={styles.signatureLine}>{props.studentName}</Text>
         </View>
@@ -323,6 +334,7 @@ export function CertificateTemplate(props: Props) {
 
         <View style={styles.scopeSignature}>
           <Image src={SIGNATURE_BASE64} style={styles.signatureImage} />
+          <Text style={styles.scopeSignatureLabel}>{SIGNATURE_LABEL}</Text>
         </View>
       </Page>
     </Document>
