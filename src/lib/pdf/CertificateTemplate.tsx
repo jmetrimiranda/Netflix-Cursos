@@ -85,9 +85,9 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 13,
     lineHeight: 1.7,
-    textAlign: "center",
-    paddingHorizontal: 32,
-    marginBottom: 18,
+    textAlign: "left",
+    paddingHorizontal: 4,
+    marginBottom: 14,
   },
   bold: {
     fontFamily: "Helvetica-Bold",
