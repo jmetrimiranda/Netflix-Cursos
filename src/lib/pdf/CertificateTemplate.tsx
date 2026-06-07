@@ -128,15 +128,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   // assinatura-nova.jpg é um bloco completo (rubrica + nome + CREA + carimbo +
-  // CNPJ). Ratio ~1.415 (w/h): 134 de largura → ~95 de altura. Tamanho
-  // calibrado (renderToBuffer) pra caber na página 1 com o logo grande, o
-  // nome longo E o rótulo/linha do responsável técnico abaixo da imagem,
-  // mantendo EXATAMENTE 2 páginas.
+  // CNPJ). Ratio ~1.415 (w/h): 106 de largura → ~75 de altura. Reduzida
+  // (de 134×95) e com `marginBottom` generoso (10pt) para LIBERAR a linha
+  // horizontal + o rótulo "RESPONSÁVEL TÉCNICO" abaixo: a imagem termina no
+  // CNPJ/carimbo e precisa de folga clara antes da linha, senão parece que a
+  // imagem cobre a linha. Tamanho calibrado (renderToBuffer) pra manter
+  // EXATAMENTE 2 páginas com o logo grande + nome longo.
   signatureImage: {
-    width: 134,
-    height: 95,
+    width: 106,
+    height: 75,
     objectFit: "contain",
-    marginBottom: 2,
+    marginBottom: 10,
   },
   signatureLine: {
     borderTop: "1px solid #1E3A5F",
