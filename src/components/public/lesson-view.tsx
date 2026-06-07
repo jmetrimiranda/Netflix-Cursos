@@ -4,7 +4,7 @@ import { LessonPlayer } from "@/components/public/lesson-player";
 import { ProgressTracker } from "@/components/public/progress-tracker";
 import { TiptapRenderer } from "@/components/public/tiptap-renderer";
 import { Button } from "@/components/ui/button";
-import { COMPLETED_THRESHOLD_PCT } from "@/lib/progress";
+import { areAllLessonsCompleted, COMPLETED_THRESHOLD_PCT } from "@/lib/progress";
 import { readStudentEmail } from "@/lib/student-email";
 import type { JSONContent } from "@tiptap/react";
 import { ArrowLeftIcon, CheckIcon, FileDownIcon, PlayIcon } from "lucide-react";
@@ -120,6 +120,18 @@ export function LessonView({
     }
     return set;
   }, [enrollment]);
+
+  // Mesma lógica usada na página de detalhes do curso (CourseDetailGate):
+  // a prova só libera quando TODAS as aulas do curso estão concluídas.
+  // `siblingLessons` contém todas as aulas do curso (ver page.tsx da rota).
+  const allLessonsCompleted = useMemo(() => {
+    if (!enrollment) return false;
+    const views = Array.from(enrollment.byLesson, ([lessonId, st]) => ({
+      lessonId,
+      completed: st.completed,
+    }));
+    return areAllLessonsCompleted(siblingLessons, views);
+  }, [enrollment, siblingLessons]);
 
   const applyProgressUpdate = useCallback(
     (data: { progressPct: number; completed: boolean }) => {
@@ -256,6 +268,38 @@ export function LessonView({
               })}
             </ol>
           </div>
+
+          {/* Botão de prova — mesmo gating da página de detalhes: só libera
+              quando TODAS as aulas do curso estão concluídas. Só renderiza
+              com matrícula ativa (enrollment != null). */}
+          {enrollment && (
+            <div className="border-t border-white/10 pt-4">
+              <Link
+                href={allLessonsCompleted ? `/cursos/${courseSlug}/aulas/prova` : "#"}
+                aria-disabled={!allLessonsCompleted}
+                tabIndex={allLessonsCompleted ? undefined : -1}
+                className={`block ${allLessonsCompleted ? "" : "pointer-events-none"}`}
+              >
+                <Button
+                  className="w-full"
+                  variant={allLessonsCompleted ? "default" : "outline"}
+                  disabled={!allLessonsCompleted}
+                  title={
+                    allLessonsCompleted
+                      ? "Iniciar prova"
+                      : "Conclua todas as aulas para liberar a prova"
+                  }
+                >
+                  Fazer prova
+                </Button>
+              </Link>
+              {!allLessonsCompleted && (
+                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                  Conclua todas as aulas para liberar a prova.
+                </p>
+              )}
+            </div>
+          )}
         </aside>
       </div>
 

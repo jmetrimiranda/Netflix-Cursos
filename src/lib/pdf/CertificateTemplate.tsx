@@ -9,11 +9,12 @@ import { parseScopeTopics } from "./scope";
 // NUNCA via process.cwd()/fs/path — isso quebra silenciosamente no runtime
 // serverless da Vercel (public/ não entra no filesystem da lambda).
 
-const CNPJ_FOOTER = "BISSOLI ENGENHARIA E SERVIÇOS - CNPJ: 29.974.056/0001-29";
-
-// O rótulo do responsável técnico NÃO repete nome/título/CREA porque a
-// imagem da assinatura (SIGNATURE_BASE64) já contém "EDUARDO BISSOLI",
-// "Eng° Mecânico..." e "CREA MT-038597/D". Evita duplicação.
+// A imagem da assinatura (SIGNATURE_BASE64 = assinatura-nova.jpg) é um bloco
+// COMPLETO: rubrica + "EDUARDO BISSOLI" + títulos + "CREA MT-038597/D" +
+// carimbo redondo da Ativa/Bissoli Engenharia + CNPJ 29.974.056/0001-29.
+// O ÚNICO texto que renderizamos abaixo da linha é o rótulo do PAPEL
+// ("RESPONSÁVEL TÉCNICO — ATIVA ENGENHARIA"), simétrico ao bloco do aluno.
+// NÃO repetir nome/CREA/profissão/CNPJ como texto — já estão na imagem.
 const SIGNATURE_LABEL = "RESPONSÁVEL TÉCNICO — ATIVA ENGENHARIA";
 
 const styles = StyleSheet.create({
@@ -29,8 +30,11 @@ const styles = StyleSheet.create({
   // como PRIMEIRO filho do <Page> com a prop `fixed` → fica ATRÁS do conteúdo
   // (ordem de documento) E é excluída do cálculo de paginação. Sem `fixed`,
   // este wrapper absolute (top:0/bottom:0 = altura cheia da página) excede a
-  // área útil e força uma página em branco extra. A arte (logo 1.png) já é
-  // muito translúcida (alpha médio ~5/255), então NÃO aplicamos opacity extra.
+  // área útil e força uma página em branco extra. A arte-fonte (logo 1.png) era
+  // translúcida demais (alpha médio ~2%); o base64 em watermark.ts foi
+  // regerado multiplicando o canal alfa por 2.5 → alpha médio ~5% (max ~24%),
+  // ficando discreto mas perceptível. NÃO aplicamos `opacity` no <Image> porque
+  // opacity < 1 MULTIPLICA (reduziria), e o efeito desejado é AUMENTAR.
   watermarkWrap: {
     position: "absolute",
     top: 0,
@@ -51,9 +55,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
+  // Logo ampliado vs. o tamanho-base original (~36pt; o alvo "6x" seria ~216pt).
+  // Testado com renderToBuffer: a partir de ~165pt, combinado com a assinatura
+  // nova (maior) e nomes longos que quebram o corpo em 3 linhas, a página 1
+  // transborda pra uma 3ª página. 160pt (~4.4x) é o maior valor que mantém
+  // EXATAMENTE 2 páginas com folga em todos os casos realistas testados.
   logo: {
-    width: 140,
-    height: 140,
+    width: 160,
+    height: 160,
     objectFit: "contain",
   },
   headerRight: {
@@ -71,23 +80,23 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
     color: "#3D5A80",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   title: {
     fontSize: 30,
     letterSpacing: 6,
     fontFamily: "Helvetica-Bold",
     textAlign: "center",
-    marginTop: 4,
-    marginBottom: 24,
+    marginTop: 2,
+    marginBottom: 18,
     color: "#6b7280",
   },
   body: {
     fontSize: 13,
     lineHeight: 1.7,
-    textAlign: "center",
-    paddingHorizontal: 32,
-    marginBottom: 18,
+    textAlign: "left",
+    paddingHorizontal: 4,
+    marginBottom: 14,
   },
   bold: {
     fontFamily: "Helvetica-Bold",
@@ -109,7 +118,7 @@ const styles = StyleSheet.create({
     color: "#1E3A5F",
   },
   signatureRow: {
-    marginTop: 36,
+    marginTop: 16,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "flex-end",
@@ -118,11 +127,18 @@ const styles = StyleSheet.create({
     width: 280,
     alignItems: "center",
   },
+  // assinatura-nova.jpg é um bloco completo (rubrica + nome + CREA + carimbo +
+  // CNPJ). Ratio ~1.415 (w/h): 106 de largura → ~75 de altura. Reduzida
+  // (de 134×95) e com `marginBottom` generoso (10pt) para LIBERAR a linha
+  // horizontal + o rótulo "RESPONSÁVEL TÉCNICO" abaixo: a imagem termina no
+  // CNPJ/carimbo e precisa de folga clara antes da linha, senão parece que a
+  // imagem cobre a linha. Tamanho calibrado (renderToBuffer) pra manter
+  // EXATAMENTE 2 páginas com o logo grande + nome longo.
   signatureImage: {
-    width: 150,
-    height: 73,
+    width: 106,
+    height: 75,
     objectFit: "contain",
-    marginBottom: 2,
+    marginBottom: 10,
   },
   signatureLine: {
     borderTop: "1px solid #1E3A5F",
@@ -131,20 +147,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     textAlign: "center",
     color: "#1a2f4a",
-  },
-  footerRow: {
-    position: "absolute",
-    left: 56,
-    right: 56,
-    bottom: 28,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  footerCnpj: {
-    fontSize: 8,
-    color: "#3D5A80",
-    maxWidth: 320,
   },
   qrImage: {
     width: 72,
@@ -306,10 +308,6 @@ export function CertificateTemplate(props: Props) {
           </View>
           <Text style={styles.signatureLine}>{props.studentName}</Text>
         </View>
-
-        <View style={styles.footerRow}>
-          <Text style={styles.footerCnpj}>{CNPJ_FOOTER}</Text>
-        </View>
       </Page>
 
       {/* PÁGINA 2 — escopo acadêmico */}
@@ -339,10 +337,6 @@ export function CertificateTemplate(props: Props) {
         <View style={styles.scopeSignature}>
           <Image src={SIGNATURE_BASE64} style={styles.signatureImage} />
           <Text style={styles.scopeSignatureLabel}>{SIGNATURE_LABEL}</Text>
-        </View>
-
-        <View style={styles.footerRow}>
-          <Text style={styles.footerCnpj}>{CNPJ_FOOTER}</Text>
         </View>
       </Page>
     </Document>
