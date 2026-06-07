@@ -9,12 +9,12 @@ import { parseScopeTopics } from "./scope";
 // NUNCA via process.cwd()/fs/path — isso quebra silenciosamente no runtime
 // serverless da Vercel (public/ não entra no filesystem da lambda).
 
-const CNPJ_FOOTER = "BISSOLI ENGENHARIA E SERVIÇOS - CNPJ: 29.974.056/0001-29";
-
-// O rótulo do responsável técnico NÃO repete nome/título/CREA porque a
-// imagem da assinatura (SIGNATURE_BASE64) já contém "EDUARDO BISSOLI",
-// "Eng° Mecânico..." e "CREA MT-038597/D". Evita duplicação.
-const SIGNATURE_LABEL = "RESPONSÁVEL TÉCNICO — ATIVA ENGENHARIA";
+// A imagem da assinatura (SIGNATURE_BASE64 = assinatura-nova.jpg) é um bloco
+// COMPLETO: rubrica + "EDUARDO BISSOLI" + títulos + "CREA MT-038597/D" +
+// carimbo redondo da Ativa/Bissoli Engenharia + CNPJ 29.974.056/0001-29.
+// Por isso NÃO renderizamos mais nem o rótulo de texto "RESPONSÁVEL TÉCNICO —
+// ATIVA ENGENHARIA" abaixo da assinatura, nem o rodapé com o CNPJ — tudo isso
+// já está dentro da própria imagem. Evita duplicação grosseira.
 
 const styles = StyleSheet.create({
   page: {
@@ -126,9 +126,13 @@ const styles = StyleSheet.create({
     width: 280,
     alignItems: "center",
   },
+  // assinatura-nova.jpg é um bloco completo (rubrica + nome + CREA + carimbo +
+  // CNPJ). Ratio ~1.415 (w/h): 150 de largura → ~106 de altura. Tamanho
+  // escolhido pra caber na página 1 (com logo grande + nome longo) mantendo
+  // o bloco legível.
   signatureImage: {
     width: 150,
-    height: 73,
+    height: 106,
     objectFit: "contain",
     marginBottom: 2,
   },
@@ -139,20 +143,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     textAlign: "center",
     color: "#1a2f4a",
-  },
-  footerRow: {
-    position: "absolute",
-    left: 56,
-    right: 56,
-    bottom: 28,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  footerCnpj: {
-    fontSize: 8,
-    color: "#3D5A80",
-    maxWidth: 320,
   },
   qrImage: {
     width: 72,
@@ -228,14 +218,6 @@ const styles = StyleSheet.create({
     width: 280,
     alignItems: "center",
   },
-  scopeSignatureLabel: {
-    borderTop: "1px solid #1E3A5F",
-    width: 280,
-    paddingTop: 6,
-    fontSize: 9,
-    textAlign: "center",
-    color: "#1a2f4a",
-  },
 });
 
 type Props = {
@@ -310,13 +292,8 @@ export function CertificateTemplate(props: Props) {
         <View style={styles.signatureRow}>
           <View style={styles.signatureCol}>
             <Image src={SIGNATURE_BASE64} style={styles.signatureImage} />
-            <Text style={styles.signatureLine}>{SIGNATURE_LABEL}</Text>
           </View>
           <Text style={styles.signatureLine}>{props.studentName}</Text>
-        </View>
-
-        <View style={styles.footerRow}>
-          <Text style={styles.footerCnpj}>{CNPJ_FOOTER}</Text>
         </View>
       </Page>
 
@@ -346,11 +323,6 @@ export function CertificateTemplate(props: Props) {
 
         <View style={styles.scopeSignature}>
           <Image src={SIGNATURE_BASE64} style={styles.signatureImage} />
-          <Text style={styles.scopeSignatureLabel}>{SIGNATURE_LABEL}</Text>
-        </View>
-
-        <View style={styles.footerRow}>
-          <Text style={styles.footerCnpj}>{CNPJ_FOOTER}</Text>
         </View>
       </Page>
     </Document>
