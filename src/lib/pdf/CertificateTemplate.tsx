@@ -29,8 +29,11 @@ const styles = StyleSheet.create({
   // como PRIMEIRO filho do <Page> com a prop `fixed` → fica ATRÁS do conteúdo
   // (ordem de documento) E é excluída do cálculo de paginação. Sem `fixed`,
   // este wrapper absolute (top:0/bottom:0 = altura cheia da página) excede a
-  // área útil e força uma página em branco extra. A arte (logo 1.png) já é
-  // muito translúcida (alpha médio ~5/255), então NÃO aplicamos opacity extra.
+  // área útil e força uma página em branco extra. A arte-fonte (logo 1.png) era
+  // translúcida demais (alpha médio ~2%); o base64 em watermark.ts foi
+  // regerado multiplicando o canal alfa por 2.5 → alpha médio ~5% (max ~24%),
+  // ficando discreto mas perceptível. NÃO aplicamos `opacity` no <Image> porque
+  // opacity < 1 MULTIPLICA (reduziria), e o efeito desejado é AUMENTAR.
   watermarkWrap: {
     position: "absolute",
     top: 0,
@@ -51,9 +54,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
+  // Logo ampliado vs. o tamanho-base original (~36pt; o alvo "6x" seria ~216pt).
+  // Testado com renderToBuffer: a partir de ~165pt, combinado com a assinatura
+  // nova (maior) e nomes longos que quebram o corpo em 3 linhas, a página 1
+  // transborda pra uma 3ª página. 160pt (~4.4x) é o maior valor que mantém
+  // EXATAMENTE 2 páginas com folga em todos os casos realistas testados.
   logo: {
-    width: 140,
-    height: 140,
+    width: 160,
+    height: 160,
     objectFit: "contain",
   },
   headerRight: {
@@ -71,15 +79,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     textAlign: "center",
     color: "#3D5A80",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   title: {
     fontSize: 30,
     letterSpacing: 6,
     fontFamily: "Helvetica-Bold",
     textAlign: "center",
-    marginTop: 4,
-    marginBottom: 24,
+    marginTop: 2,
+    marginBottom: 18,
     color: "#6b7280",
   },
   body: {
@@ -109,7 +117,7 @@ const styles = StyleSheet.create({
     color: "#1E3A5F",
   },
   signatureRow: {
-    marginTop: 36,
+    marginTop: 20,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "flex-end",
