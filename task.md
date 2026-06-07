@@ -576,3 +576,37 @@ F5 (Polish) entregue via Claude Code em sessão YOLO de ~56min, mergeada em `dev
 - **E2E não rodou local** (mesma limitação da F6 — `libnspr4.so` ausente no devcontainer Trixie). Validação manual no preview Vercel obrigatória antes do merge `develop → main`.
 - **Migração de aulas legacy em prod:** Bunny nunca foi usado em produção (credenciais ficaram pendentes desde F5). Não deve haver Lesson com `bunnyVideoId` em prod hoje, mas vale confirmar via `pnpm db:studio` ou query SQL antes do PR de limpeza eventual: `SELECT id, title FROM "Lesson" WHERE "bunnyVideoId" IS NOT NULL;`.
 - **Linguagem operacional** sobre fricção vs proteção precisa ser respeitada em todas as comunicações futuras (commits, ADRs, README, PR descriptions, comentários). Proibido usar "DRM", "vídeo protegido", "download impossível", "conteúdo seguro". Use "fricção contra cópia casual" e "trade-off aceito em ADR-016".
+
+---
+## 2026-06-07 21:30 — feature/cert-ajustes-e-botao-prova — Ajustes no certificado PDF + botão de prova na aula
+
+**Fase:** pós-F7 (ajustes de produto)
+**PR:** em andamento (branch `feature/cert-ajustes-e-botao-prova`)
+
+### O que foi feito
+- **Certificado (A1):** corpo "Certificamos que ..." passou de centralizado para alinhado à esquerda (`textAlign: left`, `paddingHorizontal: 4`), mantendo negrito+sublinhado nas partes variáveis.
+- **Certificado (A2):** logo do topo-esquerdo ampliado de 140 → 160pt (~4.4x do base ~36pt). O alvo "6x" (~216pt) e mesmo ~170pt estouravam a página 1 para uma 3ª página quando combinados com a assinatura nova (maior) e nomes longos; 160pt é o maior valor que mantém EXATAMENTE 2 páginas em todos os casos realistas (validado por renderToBuffer). Margens de subtítulo/título/assinatura enxugadas para abrir espaço.
+- **Certificado (A3):** marca d'água mais visível. A arte-fonte (`logo 1.png`) tinha alpha médio ~2%; `watermark.ts` foi regerado via ImageMagick multiplicando o canal alfa por 2.5 → alpha médio ~5% (max ~24%). NÃO foi usado `opacity` no `<Image>` (opacity < 1 reduziria — direção errada). Mantida como elemento `fixed` (não reverter — evita página fantasma).
+- **Certificado (A4):** nova assinatura/carimbo. `assinatura-nova.jpg` (1755x1240) redimensionada para 900px q88 e convertida para `signature.ts` como data URI `image/jpeg`. É um bloco completo (rubrica + EDUARDO BISSOLI + títulos + CREA + carimbo redondo + CNPJ). Usada nas 2 páginas. Para evitar duplicação: removido o rótulo "RESPONSÁVEL TÉCNICO — ATIVA ENGENHARIA" e o rodapé de CNPJ das duas páginas (a imagem já traz tudo). Fundo do JPEG é branco puro (255,255,255) → sem retângulo visível. Estilos/consts mortos removidos (footerRow, footerCnpj, scopeSignatureLabel, SIGNATURE_LABEL, CNPJ_FOOTER).
+- **Certificado (A5):** validado com renderToBuffer que o PDF final tem EXATAMENTE 2 páginas no pior caso (nome longo + nome de curso longo que quebra o título em 2 linhas + 12 tópicos). QR no topo-direito e banda de fotos da página 2 mantidos.
+- **Botão de prova (B):** botão "Fazer prova" adicionado na sidebar da página da aula (`/cursos/[slug]/aulas/[lessonId]`), abaixo da lista "Aulas do curso". Reaproveita exatamente `areAllLessonsCompleted` (de `@/lib/progress`) — a mesma função que a página de detalhes usa — alimentada pelo `enrollment.byLesson` já carregado via `/api/enrollment/state`. Só renderiza com matrícula ativa; habilitado e linkando para `/cursos/[slug]/aulas/prova` só quando todas as aulas estão concluídas; senão fica desabilitado com tooltip + texto auxiliar. Botão da página de detalhes permanece intacto.
+
+### Arquivos tocados
+- `src/lib/pdf/CertificateTemplate.tsx`
+- `src/lib/pdf/assets/signature.ts` (regerado, JPEG)
+- `src/lib/pdf/assets/watermark.ts` (regerado, alfa ×2.5)
+- `public/images/brand/assinatura-nova.jpg` (fonte versionada)
+- `src/components/public/lesson-view.tsx`
+
+### Decisões
+- **Logo 160pt (não 216pt):** o "6x" literal não cabe sem empurrar conteúdo para uma 3ª página. Priorizada a invariante "exatamente 2 páginas". 160pt é o máximo seguro testado. Curiosidade: a versão nova produz 2 páginas até com nome de curso longo, enquanto o template ORIGINAL já estourava para 3 nesses casos — os trims de margem + remoção do rótulo da assinatura melhoraram a folga.
+- **Marca d'água via boost de alfa no asset, não `opacity` no `<Image>`:** opacity < 1 multiplica a translucidez (reduz), contrário ao objetivo. Boost de 2.5x no canal alfa do PNG-fonte é a forma correta de aumentar a visibilidade efetiva.
+- **Rodapé de CNPJ e rótulo do responsável técnico removidos:** a imagem da assinatura já contém nome, CREA, empresa e CNPJ. Mantê-los duplicaria a informação.
+
+### Próximos passos
+- Push da branch + abrir PR.
+- Validação manual no preview Vercel: gerar um certificado real e conferir visualmente (logo grande sem sobrepor o título, marca d'água perceptível mas discreta, assinatura nova sem retângulo, 2 páginas); na página da aula, conferir o botão de prova desabilitado antes de concluir tudo e habilitado depois.
+
+### Blockers / pendências
+- **E2E não rodado** (mesma limitação do devcontainer Trixie — `libnspr4.so`). Validação manual obrigatória antes do merge.
+- **Marca d'água ~5%:** o valor de alfa foi calibrado por número (média ~5%), não por inspeção visual no PDF. Se no preview ficar visível demais/de menos, ajustar o fator de multiplicação ao regerar `watermark.ts`.
